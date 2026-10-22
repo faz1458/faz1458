@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>fazのホームページ</title>
+  <title>ホームページ</title>
   <link rel="icon" type="image/jpeg" href="favicon.jpg">
   <style>
     body {
@@ -20,6 +19,10 @@
     h1 {
       border-bottom: 2px solid #ddd;
       padding-bottom: 10px;
+    }
+
+    .site-title {
+      text-align: center;
     }
 
     .menu {
@@ -46,16 +49,16 @@
 </head>
 <body>
   <div id="home">
-    <h1>ちわっす</h1>
-    <p>やっほー。</p>
+    <h1 class="site-title">fazのホームページ</h1>
+    <p>こんにちは。</p>
 
     <h2>目次</h2>
-    <p>見たい項目をクリックしてください。</p>
+    <p>取り組んできたものを並べてみました</p>
 
     <ul class="menu">
       <li><a href="#profile">プロフィール</a></li>
-      <li><a href="#game">ゲーム</a></li>
-      <li><a href="#music">曲</a></li>
+      <li><a href="#game">ゲーム作り</a></li>
+      <li><a href="#music">曲作り</a></li>
       <li><a href="#3dcg">3DCG</a></li>
       <li><a href="#typing">タイピング</a></li>
       <li><a href="#mariokart">マリオカート</a></li>
@@ -69,14 +72,14 @@
 
   <div id="section" hidden>
     <h1 id="section-title"></h1>
-    <a class="back" href="#">← トップページに戻る</a>
+    <a class="back" href="#">トップページに戻る</a>
   </div>
 
   <script>
     const sections = {
       profile: "プロフィール",
-      game: "ゲーム",
-      music: "曲",
+      game: "ゲーム作り",
+      music: "曲作り",
       "3dcg": "3DCG",
       typing: "タイピング",
       mariokart: "マリオカート",
@@ -97,11 +100,11 @@
         home.hidden = true;
         section.hidden = false;
         title.textContent = sections[id];
-        document.title = sections[id] + " - fazのホームページ";
+        document.title = sections[id] + " - ホームページ";
       } else {
         home.hidden = false;
         section.hidden = true;
-        document.title = "fazのホームページ";
+        document.title = "ホームページ";
       }
     }
 
