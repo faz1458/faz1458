@@ -6,9 +6,107 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>fazのホームページ</title>
   <link rel="icon" type="image/jpeg" href="favicon.jpg">
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.8;
+      color: #333;
+      background-color: #fff;
+    }
+
+    h1 {
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 10px;
+    }
+
+    .menu {
+      padding-left: 25px;
+    }
+
+    .menu li {
+      margin: 8px 0;
+    }
+
+    a {
+      color: #0066cc;
+    }
+
+    a:hover {
+      color: #ff6600;
+    }
+
+    .back {
+      display: inline-block;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-  <h1>ちわっす</h1>
-  <p>やっほー</p>
+  <div id="home">
+    <h1>ちわっす</h1>
+    <p>やっほー。</p>
+
+    <h2>目次</h2>
+    <p>見たい項目をクリックしてください。</p>
+
+    <ul class="menu">
+      <li><a href="#profile">プロフィール</a></li>
+      <li><a href="#game">ゲーム</a></li>
+      <li><a href="#music">曲</a></li>
+      <li><a href="#3dcg">3DCG</a></li>
+      <li><a href="#typing">タイピング</a></li>
+      <li><a href="#mariokart">マリオカート</a></li>
+      <li><a href="#mahjong">麻雀</a></li>
+      <li><a href="#shogi">将棋</a></li>
+      <li><a href="#baseball">野球</a></li>
+      <li><a href="#misc">雑多</a></li>
+      <li><a href="#links">リンク集</a></li>
+    </ul>
+  </div>
+
+  <div id="section" hidden>
+    <h1 id="section-title"></h1>
+    <a class="back" href="#">← トップページに戻る</a>
+  </div>
+
+  <script>
+    const sections = {
+      profile: "プロフィール",
+      game: "ゲーム",
+      music: "曲",
+      "3dcg": "3DCG",
+      typing: "タイピング",
+      mariokart: "マリオカート",
+      mahjong: "麻雀",
+      shogi: "将棋",
+      baseball: "野球",
+      misc: "雑多",
+      links: "リンク集"
+    };
+
+    function showPage() {
+      const id = location.hash.slice(1);
+      const home = document.getElementById("home");
+      const section = document.getElementById("section");
+      const title = document.getElementById("section-title");
+
+      if (sections[id]) {
+        home.hidden = true;
+        section.hidden = false;
+        title.textContent = sections[id];
+        document.title = sections[id] + " - fazのホームページ";
+      } else {
+        home.hidden = false;
+        section.hidden = true;
+        document.title = "fazのホームページ";
+      }
+    }
+
+    window.addEventListener("hashchange", showPage);
+    showPage();
+  </script>
 </body>
 </html>
