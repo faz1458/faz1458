@@ -66,59 +66,57 @@
         <a href="https://x.com/faz1459" target="_blank" rel="noopener noreferrer">https://x.com/faz1459</a>
         <br>
         日常含め、雑多。それなりに呟く。ほぼ誰でも通す。
-      </li>  
+      </li>
       <li>
         Twitter（野球）：
         <a href="https://x.com/fyakyuu1234" target="_blank" rel="noopener noreferrer">https://x.com/fyakyuu1234</a>
         <br>
         野球の話をする。西武ライオンズファン。
-      </li> 
+      </li>
       <li>
         Twitter（自作曲）：
         <a href="https://x.com/ncncsuriashi" target="_blank" rel="noopener noreferrer">https://x.com/ncncsuriashi</a>
         <br>
         オリジナルのボカロ(広義)曲は名義を分けており、その名義のアカウント。曲を投稿しましたツイート以外しないという信念を持っている。
-      </li>        
+      </li>
       <li>
         Bluesky：
         <a href="https://bsky.app/profile/faz1458.bsky.social" target="_blank" rel="noopener noreferrer">https://bsky.app/profile/faz1458.bsky.social</a>
         <br>
         日常含め、雑多。それなりに呟く。
-      </li>   
+      </li>
       <li>
         note：
         <a href="https://note.com/faz1458" target="_blank" rel="noopener noreferrer">https://note.com/faz1458</a>
         <br>
         真面目に書いた文章を投げる場所。テーマは様々。
-      </li> 
+      </li>
       <li>
         unityroom：
         <a href="https://unityroom.com/users/faz1458" target="_blank" rel="noopener noreferrer">https://unityroom.com/users/faz1458</a>
         <br>
         自作ゲームを投げる場所。まだ1つしかない。たくさん作っていきたい。
-      </li> 
+      </li>
       <li>
         youtube：
         <a href="https://www.youtube.com/@faz-c9z" target="_blank" rel="noopener noreferrer">https://www.youtube.com/@faz-c9z</a>
         <br>
         作った動画を投げる場所。テーマは様々。
-      </li> 
+      </li>
       <li>
         ニコニコ動画：
-        <a href=https://www.nicovideo.jp/user/144386211" target="_blank" rel="noopener noreferrer">https://www.nicovideo.jp/user/144386211</a>
+        <a href="https://www.nicovideo.jp/user/144386211" target="_blank" rel="noopener noreferrer">https://www.nicovideo.jp/user/144386211</a>
         <br>
         オリジナルのボカロ(広義)曲を投げる場所。たくさん作っていきたい。
-      </li> 
-      
+      </li>
     </ul>
 
     <h2>項目別</h2>
     <ul class="menu">
-      <li><a href="#profile">プロフィール</a></li>
       <li><a href="#game">ゲーム作り</a></li>
       <li><a href="#music">曲作り</a></li>
       <li><a href="#3dcg">3DCG</a></li>
-      <li><a href="#bunsyou">真面目文章</a></li>      
+      <li><a href="#bunsyou">真面目文章</a></li>
       <li><a href="#typing">タイピング</a></li>
       <li><a href="#mariokart">マリオカート</a></li>
       <li><a href="#mahjong">麻雀</a></li>
@@ -131,12 +129,14 @@
 
   <div id="section" hidden>
     <h1 id="section-title"></h1>
+
+    <p id="misc-content" hidden>今アツいもの「伊原摩耶花」</p>
+
     <a class="back" href="#">トップページに戻る</a>
   </div>
 
   <script>
     const sections = {
-      profile: "プロフィール",
       game: "ゲーム作り",
       music: "曲作り",
       "3dcg": "3DCG",
@@ -155,11 +155,13 @@
       const home = document.getElementById("home");
       const section = document.getElementById("section");
       const title = document.getElementById("section-title");
+      const miscContent = document.getElementById("misc-content");
 
       if (sections[id]) {
         home.hidden = true;
         section.hidden = false;
         title.textContent = sections[id];
+        miscContent.hidden = id !== "misc";
         document.title = sections[id] + " - ホームページ";
       } else {
         home.hidden = false;
