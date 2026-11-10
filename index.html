@@ -70,6 +70,14 @@
         [hidden] {
             display: none !important;
         }
+
+        /* スマホ版：動画の幅をPC版の2倍にする */
+        @media (max-width: 768px) {
+            .music-video,
+            .game-video {
+                width: 100% !important;
+            }
+        }
     </style>
 </head>
 
@@ -78,7 +86,6 @@
         <h1 class="site-title">fazのホームページ</h1>
         <p>こんにちは。取り組んできたものをまとめるために、個人サイトを立ち上げてみました。</p>
 
-  
         <h2>SNSなど</h2>
         <ul class="menu">
             <li>
@@ -180,8 +187,6 @@
         </div>
 
         <div id="3dcg-content" hidden>
-
-
             <h2>短編動画</h2>
             <p>昔Blenderで作った短編動画です。キャラはオリジナルです。愛着が湧いたので、アイコンに使っています。</p>
             <blockquote class="bluesky-embed" data-bluesky-uri="at://did:plc:viz4rc2uvhcqij4bds3j26nc/app.bsky.feed.post/3ltbpinprcs2h" data-bluesky-cid="">
@@ -196,7 +201,6 @@
 
             <h2 style="margin-top: 50px;">雑記</h2>
             <p>まだ何も無し。これから書きます。</p>
-
         </div>
 
         <div id="bunsyou-content" hidden>
@@ -258,7 +262,6 @@
 
             <h2 style="margin-top: 50px;">雑記</h2>
             <p>まだ何も無し。これから書きます。</p>
-
         </div>
 
         <div id="mahjong-content" hidden>
@@ -291,10 +294,7 @@
 
             <h2 style="margin-top: 50px;">雑記</h2>
             <p>まだ何も無し。これから書きます。</p>
-
-
         </div>
-
 
         <div id="shogi-content" hidden>
             <p>将棋ウォーズ二段。三段が遠い。向かい飛車、筋違い角をメインに。<br>不定期、限定公開で配信してます。配信する時はTwitterの鍵垢で告知してます。</p>
@@ -303,7 +303,6 @@
 
             <h2 style="margin-top: 50px;">雑記</h2>
             <p>まだ何も無し。これから書きます。</p>
-
         </div>
 
         <div id="baseball-content" hidden>
@@ -312,7 +311,6 @@
 
             <h2 style="margin-top: 50px;">雑記</h2>
             <p>まだ何も無し。これから書きます。</p>
-
         </div>
 
         <div id="music-content" hidden>
@@ -324,7 +322,7 @@
                 <p>(2026/10/16)</p>
             </div>
 
-            <div style="position: relative; width: 50%; aspect-ratio: 16 / 9;">
+            <div class="music-video" style="position: relative; width: 50%; aspect-ratio: 16 / 9;">
                 <iframe src="https://embed.nicovideo.jp/watch/sm46928578"
                         title="ハニーターン"
                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
@@ -337,7 +335,7 @@
                 <p>(2026/08/21)</p>
             </div>
 
-            <div style="position: relative; width: 50%; aspect-ratio: 16 / 9;">
+            <div class="music-video" style="position: relative; width: 50%; aspect-ratio: 16 / 9;">
                 <iframe src="https://embed.nicovideo.jp/watch/sm46700972"
                         title="桟橋"
                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
@@ -350,7 +348,7 @@
                 <p>(2026/07/01)</p>
             </div>
 
-            <div style="position: relative; width: 50%; aspect-ratio: 16 / 9;">
+            <div class="music-video" style="position: relative; width: 50%; aspect-ratio: 16 / 9;">
                 <iframe src="https://embed.nicovideo.jp/watch/sm46498372"
                         title="薄ら笑い"
                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
@@ -360,8 +358,6 @@
 
             <h2 style="margin-top: 50px;">faz</h2>
             <p>ボカロではない曲はこちらの名義ということにします。特にどこかに出しているわけではなかったので、ここに全部置いておくことにします。ナンバリングはほぼそのまま作った順です。空き番は、まだ形になっていないもの、またはボカロ曲として完成したものです。また、自作ゲームに使った曲のみ、ちょっとしたタイトルを付けています。まだゲームに使われていない曲も、早く次のゲームを完成させて使いたいところです。</p>
-
-
 
             <div style="display: flex; align-items: baseline; gap: 10px;">
                 <h3>BGM46</h3>
@@ -692,7 +688,6 @@
             <h2 style="margin-top: 50px;">雑記</h2>
             <p>まだ何も無し。これから書きます。</p>
 
-
             <script>
                 document.querySelectorAll('audio').forEach(audio => {
                     // 別の曲を再生したら、ほかの曲を停止する
@@ -753,7 +748,6 @@
                 <a href="https://takei.moe" target="_blank" rel="noopener noreferrer">https://takei.moe</a>
             </p>
         </div>
-
 
         <div id="game-content" hidden>
             <p>
@@ -871,7 +865,7 @@
 
             <h3>サウンドトラック</h3>
 
-            <div style="position: relative; width: 50%; aspect-ratio: 16 / 9;">
+            <div class="game-video" style="position: relative; width: 50%; aspect-ratio: 16 / 9;">
                 <iframe src="https://www.youtube.com/embed/wwei11FGuv4"
                         title="一人旅シミュレーション オリジナルサウンドトラック"
                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
@@ -893,17 +887,11 @@
 
             <h2>雑記</h2>
             <p>まだ何も無し。これから書きます。</p>
-
-
         </div>
-
-
-
 
         <a class="back" href="#">トップページに戻る</a>
     </div>
 
-    
     <script>
         const sections = {
             game: "ゲーム作り",
@@ -1005,8 +993,5 @@
         showPage();
         scrollToTop();
     </script>
-    
-
-
 </body>
 </html>
