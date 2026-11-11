@@ -29,6 +29,8 @@
             padding-left: 10px;
         }
 
+
+
         .menu h3 {
             margin-top: 0;
             margin-bottom: 0;
@@ -755,58 +757,7 @@
                 style="list-style: none; padding-left: 0; margin-left: 0;">
             </ul>
 
-            <script>
-                document.querySelectorAll('audio').forEach(audio => {
-                    // 別の曲を再生したら、ほかの曲を停止する
-                    audio.addEventListener('play', () => {
-                        document.querySelectorAll('audio').forEach(otherAudio => {
-                            if (otherAudio !== audio) {
-                                otherAudio.pause();
-                                otherAudio.currentTime = 0;
-                            }
-                        });
-                    });
 
-                    // プレイヤーとボタンを横並びにする
-                    const wrapper = document.createElement('div');
-                    wrapper.style.display = 'flex';
-                    wrapper.style.alignItems = 'center';
-                    wrapper.style.gap = '8px';
-                    wrapper.style.width = 'fit-content';
-
-                    // オーディオプレイヤーをラッパーに入れる
-                    audio.parentNode.insertBefore(wrapper, audio);
-                    wrapper.appendChild(audio);
-
-                    // ループボタンを作成
-                    const button = document.createElement('button');
-                    button.type = 'button';
-                    button.textContent = '🔁';
-                    button.setAttribute('aria-label', 'ループ再生');
-                    button.setAttribute('aria-pressed', 'false');
-
-                    // OFF時の見た目
-                    button.style.backgroundColor = 'white';
-                    button.style.color = 'black';
-                    button.style.border = '1px solid #888';
-                    button.style.borderRadius = '6px';
-                    button.style.padding = '6px 10px';
-                    button.style.cursor = 'pointer';
-                    button.style.fontSize = '16px';
-                    button.style.flexShrink = '0';
-
-                    button.addEventListener('click', () => {
-                        audio.loop = !audio.loop;
-
-                        // ONなら青、OFFなら白
-                        button.style.backgroundColor = audio.loop ? '#1677ff' : 'white';
-                        button.style.color = audio.loop ? 'white' : 'black';
-                        button.setAttribute('aria-pressed', String(audio.loop));
-                    });
-
-                    wrapper.appendChild(button);
-                });
-            </script>
         </div>
 
         <div id="links-content" hidden>
@@ -1216,7 +1167,8 @@
             }
         }
 
-        // 音源プレイヤーの共通設定
+
+
         function initializeAudioPlayers(container = document) {
             container.querySelectorAll("audio").forEach(audio => {
                 if (audio.dataset.initialized === "true") return;
@@ -1239,14 +1191,16 @@
                 wrapper.style.display = "flex";
                 wrapper.style.alignItems = "center";
                 wrapper.style.gap = "8px";
-                wrapper.style.width = "100%";
+                wrapper.style.width = "fit-content";
+                wrapper.style.maxWidth = "100%";
                 wrapper.style.margin = "10px 0";
 
                 audio.parentNode.insertBefore(wrapper, audio);
                 wrapper.appendChild(audio);
 
-                audio.style.flex = "1";
-                audio.style.minWidth = "0";
+                audio.style.width = "300px";
+                audio.style.maxWidth = "100%";
+                audio.style.flex = "none";
 
                 // ループボタン
                 const loopButton = document.createElement("button");
@@ -1281,10 +1235,13 @@
             });
         }
 
+
         // 最初からHTMLにある音源を初期化
         initializeAudioPlayers();
 
-        // 記事を表示
+
+
+
         async function showZakkiArticle(folder, filename) {
             const titleElement =
                 document.getElementById("zakki-article-title");
@@ -1298,13 +1255,11 @@
             const categoryBackLink =
                 document.getElementById("zakki-category-back");
 
+            const articleKey = folder + "/" + filename;
+
             titleElement.textContent =
                 filename.replace(/\.txt$/i, "");
 
-            dateElement.textContent = "(日付取得中...)";
-            bodyElement.textContent = "読み込み中...";
-
-            // 記事のジャンルに戻るリンクを設定
             categoryBackLink.textContent =
                 (sections[folder] || folder) + "に戻る";
 
@@ -1315,15 +1270,21 @@
                 goToPage(folder, true);
             };
 
+            // すでに読み込んだ同じ記事なら、本文を作り直さない
+            if (bodyElement.dataset.loadedArticle === articleKey) {
+                return;
+            }
+
+            dateElement.textContent = "(日付取得中...)";
+            bodyElement.textContent = "読み込み中...";
+
             try {
-                // 作成日とジャンルを表示
                 const date = await getZakkiCreatedDate(folder, filename);
                 const genre = sections[folder] || folder;
 
                 dateElement.textContent =
                     "(" + date.replace(/^\(|\)$/g, "") + "、" + genre + ")";
 
-                // 記事本文を取得
                 const fileUrl =
                     "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
                     encodeURIComponent("雑記") + "/" +
@@ -1338,12 +1299,10 @@
                     throw new Error("記事の読み込みに失敗しました。");
                 }
 
-                // UTF-8として読み込む
                 const buffer = await response.arrayBuffer();
                 const decoder = new TextDecoder("utf-8");
                 const text = decoder.decode(buffer);
 
-                // HTMLとして解釈されないようにエスケープ
                 const escapedText = text
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
@@ -1351,13 +1310,11 @@
                     .replace(/"/g, "&quot;")
                     .replace(/'/g, "&#039;");
 
-                // **で囲まれた部分を太字にする
                 let formattedText = escapedText.replace(
                     /\*\*(.+?)\*\*/g,
                     "<strong>$1</strong>"
                 );
 
-                // URLをクリックできるリンクにする
                 formattedText = formattedText.replace(
                     /https?:\/\/[^\s<]+/g,
                     url => {
@@ -1374,13 +1331,23 @@
                     }
                 );
 
-                // MP3・WAVの音源指定をプレイヤーに変換
+                // 雑記/音源 と ルート/music の両方に対応
+                // MP3・WAV の両方に対応
                 formattedText = formattedText.replace(
                     /\[\[audio:([^\]]+\.(?:mp3|wav))\]\]/gi,
                     (match, filename) => {
                         const audioFilename = filename.trim();
+
+                        // music/ で始まる場合はルートのmusicフォルダ
+                        const isMusic = /^music\//i.test(audioFilename);
+
+                        // music/ を取り除いた実際のファイル名
+                        const actualFilename = isMusic
+                            ? audioFilename.replace(/^music\//i, "")
+                            : audioFilename;
+
                         const extension =
-                            audioFilename.split(".").pop().toLowerCase();
+                            actualFilename.split(".").pop().toLowerCase();
 
                         const mimeTypes = {
                             mp3: "audio/mpeg",
@@ -1389,30 +1356,42 @@
 
                         const mimeType = mimeTypes[extension];
 
+                        // ファイルの場所を決定
+                        const folderPath = isMusic
+                            ? "music"
+                            : encodeURIComponent("雑記") + "/" +
+                            encodeURIComponent("音源");
+
+                        // ファイル名をURL用に変換
+                        const encodedFilename = actualFilename
+                            .split("/")
+                            .map(part => encodeURIComponent(part))
+                            .join("/");
+
                         const audioUrl =
                             "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
-                            encodeURIComponent("雑記") + "/" +
-                            encodeURIComponent("音源") + "/" +
-                            encodeURIComponent(audioFilename);
+                            folderPath + "/" + encodedFilename;
 
-                        return '<audio controls preload="none" style="width: 100%;">' +
+                        return '<audio controls preload="none">' +
                             '<source src="' + audioUrl +
                             '" type="' + mimeType + '">' +
                             '</audio>';
                     }
                 );
 
-                // 記事本文を表示
                 bodyElement.innerHTML = formattedText;
 
-                // 記事内の音源を初期化
                 initializeAudioPlayers(bodyElement);
+
+                // 読み込み済みの記事として記録
+                bodyElement.dataset.loadedArticle = articleKey;
 
             } catch (error) {
                 bodyElement.textContent = "記事を読み込めませんでした。";
                 console.error(error);
             }
         }
+
 
         // ページ最上部へ移動
         function scrollToTop() {
@@ -1532,12 +1511,16 @@
             return false;
         }
 
-        // トップページの項目別リンク
-        document.querySelectorAll("#home a[href^='#']").forEach(link => {
-            link.addEventListener("click", event => {
-                event.preventDefault();
-                goToPage(link.getAttribute("href").slice(1));
-            });
+        // トップページ内のリンク
+        // 動的に生成された雑記記事リンクにも対応
+        document.getElementById("home").addEventListener("click", event => {
+            const link = event.target.closest("a[href^='#']");
+
+            if (!link) return;
+
+            event.preventDefault();
+
+            goToPage(link.getAttribute("href").slice(1));
         });
 
         // ページ内リンクと戻るリンク
