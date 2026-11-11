@@ -941,20 +941,17 @@
 
 
         </div>
-
+  
+        
         <div id="zakki-article-content" hidden>
-            <div style="display: flex; justify-content: center; align-items: baseline; gap: 10px;">
-                <h1 id="zakki-article-title" style="margin: 0;"></h1>
-                <p id="zakki-article-date" style="margin: 0; font-size: 1.2em; font-weight: normal;"></p>
+            <div style="position: relative; text-align: center; border-bottom: 1px solid black; padding-bottom: 5px;">
+                <h1 id="zakki-article-title" style="margin: 0; border-bottom: none;"></h1>
+                <p id="zakki-article-date" style="position: absolute; right: 20px; bottom: 5px; margin: 0; font-size: 1.2em; font-weight: normal; white-space: nowrap; text-align: right;"></p>
             </div>
 
             <pre id="zakki-article-body"
                  style="white-space: pre-wrap; overflow-wrap: break-word; font-family: inherit;"></pre>
         </div>
-
-
-
-
 
 
 
@@ -1112,9 +1109,12 @@
             bodyElement.textContent = "読み込み中...";
 
             try {
-                // 作成日を表示
+                // 作成日とジャンルを表示
+                const date = await getZakkiCreatedDate(folder, filename);
+                const genre = sections[folder] || folder;
+
                 dateElement.textContent =
-                    await getZakkiCreatedDate(folder, filename);
+                    "(" + date.replace(/^\(|\)$/g, "") + "、" + genre + ")";
 
                 // 記事本文を取得
                 const fileUrl =
@@ -1126,7 +1126,7 @@
                 const response = await fetch(fileUrl);
 
                 if (!response.ok) {
-                    throw new Error("記事の読み込みに失敗しました");
+                    throw new Error("記事の読み込みに失敗しました。");
                 }
 
                 // UTF-8として読み込む
@@ -1140,7 +1140,6 @@
                 console.error(error);
             }
         }
-
         // ページ最上部へ移動
         function scrollToTop() {
             window.scrollTo(0, 0);
