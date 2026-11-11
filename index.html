@@ -316,7 +316,7 @@
         <div id="shogi-content" hidden>
             <p>将棋ウォーズ二段。三段が遠い。向かい飛車、筋違い角をメインに。<br>不定期、限定公開で配信してます。配信する時はTwitterの鍵垢で告知してます。</p>
             <h2>配信アーカイブ</h2>
-            <p>まだ無し。</p>
+            <p>2026/11/11：<a href="https://youtube.com/live/hvdPDVz8nB8?feature=share" target="_blank" rel="noopener noreferrer">https://youtube.com/live/hvdPDVz8nB8?feature=share</a></p>
 
             <h2 style="margin-top: 50px;">雑記</h2>
             <p>まだ何も無し。これから書きます。</p>
@@ -703,7 +703,9 @@
             </audio>
 
             <h2 style="margin-top: 50px;">雑記</h2>
-            <p>まだ何も無し。これから書きます。</p>
+            <ul id="zakki-music-list">
+                <li>記事を読み込んでいます...</li>
+            </ul>
 
             <script>
                 document.querySelectorAll('audio').forEach(audio => {
@@ -910,8 +912,26 @@
             <p>まだ何も無し。これから書きます。</p>
         </div>
 
+        <div id="zakki-article-content" hidden>
+            <h2 id="zakki-article-title"></h2>
+            <pre id="zakki-article-body"
+                 style="white-space: pre-wrap; overflow-wrap: break-word; font-family: inherit;"></pre>
+            <a class="back" href="#music">曲作りに戻る</a>
+        </div>
+
+
+
+
+
+
+
+
+
+
         <a class="back" href="#">トップページに戻る</a>
+
     </div>
+
 
     <script>
         const sections = {
@@ -932,35 +952,165 @@
             history.scrollRestoration = "manual";
         }
 
+        // 雑記ファイルの一覧
+        const zakkiMusicApi =
+            "https://api.github.com/repos/faz1458/faz1458/contents/%E9%9B%91%E8%A8%98/music";
+
+        let zakkiMusicFiles = [];
+
+        // 雑記一覧を取得
+        async function loadZakkiMusicList() {
+            const list = document.getElementById("zakki-music-list");
+
+            if (!list) return;
+
+            list.innerHTML = "<li>記事を読み込んでいます...</li>";
+
+            try {
+                const response = await fetch(zakkiMusicApi);
+
+                if (!response.ok) {
+                    throw new Error("フォルダの読み込みに失敗しました");
+                }
+
+                const files = await response.json();
+
+                zakkiMusicFiles = files.filter(file =>
+                    file.type === "file" &&
+                    file.name.toLowerCase().endsWith(".txt")
+                );
+
+                zakkiMusicFiles.sort((a, b) =>
+                    a.name.localeCompare(b.name, "ja")
+                );
+
+                list.innerHTML = "";
+
+                if (zakkiMusicFiles.length === 0) {
+                    list.textContent = "記事はまだありません。";
+                    return;
+                }
+
+                zakkiMusicFiles.forEach(file => {
+                    const li = document.createElement("li");
+                    const link = document.createElement("a");
+
+                    const filename = file.name;
+                    const articleTitle = filename.replace(/\.txt$/i, "");
+
+                    link.href = "#zakki/music/" + encodeURIComponent(filename);
+                    link.textContent = articleTitle;
+
+                    li.appendChild(link);
+                    list.appendChild(li);
+                });
+
+            } catch (error) {
+                list.textContent = "記事一覧を読み込めませんでした。";
+                console.error(error);
+            }
+        }
+
+        // 雑記の記事本文を取得
+        async function showZakkiMusicArticle(filename) {
+            const titleElement =
+                document.getElementById("zakki-article-title");
+
+            const bodyElement =
+                document.getElementById("zakki-article-body");
+
+            const articleTitle = filename.replace(/\.txt$/i, "");
+
+            titleElement.textContent = articleTitle;
+            bodyElement.textContent = "読み込み中...";
+
+            try {
+                // 一覧にない場合もGitHub上のファイルを直接取得
+                const fileUrl =
+                    "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
+                    "雑記/music/" +
+                    encodeURIComponent(filename);
+
+                const response = await fetch(fileUrl);
+
+                if (!response.ok) {
+                    throw new Error("記事の読み込みに失敗しました");
+                }
+
+                bodyElement.textContent = await response.text();
+
+            } catch (error) {
+                bodyElement.textContent = "記事を読み込めませんでした。";
+                console.error(error);
+            }
+        }
+
         function scrollToTop() {
             window.scrollTo(0, 0);
             document.documentElement.scrollTop = 0;
             document.body.scrollTop = 0;
         }
 
-        function showPage(id = location.hash.slice(1)) {
+        // ページ表示
+        async function showPage(id = location.hash.slice(1)) {
             const home = document.getElementById("home");
             const section = document.getElementById("section");
             const title = document.getElementById("section-title");
 
-            home.hidden = Boolean(sections[id]);
-            section.hidden = !sections[id];
+            const parts = id.split("/");
+            const pageId = parts[0];
 
-            if (!sections[id]) {
-                document.title = "ホームページ";
-            } else {
-                title.textContent = sections[id];
-                document.title = sections[id] + " - ホームページ";
-            }
+            const isArticle =
+                pageId === "zakki" &&
+                parts[1] === "music" &&
+                Boolean(parts[2]);
+
+            const articleFilename = isArticle
+                ? decodeURIComponent(parts.slice(2).join("/"))
+                : null;
+
+            const articleContent =
+                document.getElementById("zakki-article-content");
+
+            const isNormalPage = Boolean(sections[id]);
+
+            home.hidden = isNormalPage || isArticle;
+            section.hidden = !isNormalPage && !isArticle;
 
             // 各コンテンツの表示を切り替える
             Object.keys(sections).forEach(key => {
                 const content = document.getElementById(key + "-content");
 
                 if (content) {
-                    content.hidden = key !== id;
+                    content.hidden = key !== id || isArticle;
                 }
             });
+
+            // 記事表示の切り替え
+            articleContent.hidden = !isArticle;
+
+            if (isArticle) {
+                title.hidden = true;
+                document.title =
+                    articleFilename.replace(/\.txt$/i, "") +
+                    " - ホームページ";
+
+                await showZakkiMusicArticle(articleFilename);
+
+            } else if (isNormalPage) {
+                title.hidden = false;
+                title.textContent = sections[id];
+                document.title = sections[id] + " - ホームページ";
+
+                // 曲作りページを開いたときに雑記一覧を取得
+                if (id === "music") {
+                    loadZakkiMusicList();
+                }
+
+            } else {
+                title.hidden = false;
+                document.title = "ホームページ";
+            }
 
             // ゲームページへの移動・離脱を処理する
             if (id === "game") {
@@ -995,10 +1145,32 @@
             });
         });
 
-        // 各項目からトップページへ戻る
-        document.querySelector("#section .back").addEventListener("click", event => {
-            event.preventDefault();
-            goToPage("");
+        // ページ内リンクと戻るリンク
+        document.getElementById("section").addEventListener("click", event => {
+            const link = event.target.closest("a");
+
+            if (!link) return;
+
+            // 記事ページから曲作りに戻る
+            if (link.closest("#zakki-article-content") &&
+                link.classList.contains("back")) {
+                event.preventDefault();
+                goToPage("music");
+                return;
+            }
+
+            // 通常のトップページへの戻るリンク
+            if (link.classList.contains("back")) {
+                event.preventDefault();
+                goToPage("");
+                return;
+            }
+
+            // 雑記記事へのリンク
+            if (link.matches('a[href^="#zakki/"]')) {
+                event.preventDefault();
+                goToPage(link.getAttribute("href").slice(1));
+            }
         });
 
         // ブラウザの戻る・進む操作
