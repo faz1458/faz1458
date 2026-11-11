@@ -928,10 +928,13 @@
         </div>
 
         <div id="zakki-article-content" hidden>
-            <h1 id="zakki-article-title"></h1>
+            <div style="display: flex; justify-content: center; align-items: baseline; gap: 10px;">
+                <h1 id="zakki-article-title" style="margin: 0;"></h1>
+                <p id="zakki-article-date" style="margin: 0; font-size: 1.2em; font-weight: normal;"></p>
+            </div>
+
             <pre id="zakki-article-body"
                  style="white-space: pre-wrap; overflow-wrap: break-word; font-family: inherit;"></pre>
-            <a class="back" href="#">曲作りに戻る</a>
         </div>
 
 
@@ -945,6 +948,7 @@
         <a class="back" href="#">トップページに戻る</a>
 
     </div>
+
 
 
 
@@ -967,10 +971,47 @@
             history.scrollRestoration = "manual";
         }
 
-        // 雑記フォルダの一覧を保存
+        // 雑記記事一覧のデータ
+        let zakkiArticles = null;
+
+        // フォルダごとの記事一覧
         const zakkiFiles = {};
 
-        // GitHub APIから指定フォルダの記事一覧を取得
+        // articles.jsonを一度だけ読み込む
+        async function loadZakkiArticles() {
+            if (zakkiArticles !== null) {
+                return zakkiArticles;
+            }
+
+            const url =
+                "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
+                encodeURIComponent("雑記") + "/articles.json";
+
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error("articles.jsonの読み込みに失敗しました");
+            }
+
+            zakkiArticles = await response.json();
+
+            return zakkiArticles;
+        }
+
+        // 記事の作成日を取得
+        async function getZakkiCreatedDate(folder, filename) {
+            const articles = await loadZakkiArticles();
+
+            const article = (articles[folder] || []).find(
+                item => item.file === filename
+            );
+
+            return article && article.date
+                ? "(" + article.date + ")"
+                : "(日付不明)";
+        }
+
+        // 指定フォルダの記事一覧を表示
         async function loadZakkiList(folder) {
             const list = document.querySelector(
                 '.zakki-list[data-zakki-folder="' + folder + '"]'
@@ -981,27 +1022,9 @@
             list.innerHTML = "<li>記事を読み込んでいます...</li>";
 
             try {
-                const apiUrl =
-                    "https://api.github.com/repos/faz1458/faz1458/contents/" +
-                    encodeURIComponent("雑記") + "/" +
-                    encodeURIComponent(folder);
+                const articles = await loadZakkiArticles();
 
-                const response = await fetch(apiUrl);
-
-                if (!response.ok) {
-                    throw new Error("フォルダの読み込みに失敗しました");
-                }
-
-                const files = await response.json();
-
-                zakkiFiles[folder] = files.filter(file =>
-                    file.type === "file" &&
-                    file.name.toLowerCase().endsWith(".txt")
-                );
-
-                zakkiFiles[folder].sort((a, b) =>
-                    a.name.localeCompare(b.name, "ja")
-                );
+                zakkiFiles[folder] = articles[folder] || [];
 
                 list.innerHTML = "";
 
@@ -1010,17 +1033,43 @@
                     return;
                 }
 
-                zakkiFiles[folder].forEach(file => {
+                zakkiFiles[folder].forEach(article => {
                     const li = document.createElement("li");
+
+                    li.style.listStyle = "none";
+                    li.style.padding = "0";
+                    li.style.margin = "0 0 5px 0";
+
+                    const row = document.createElement("div");
+
+                    row.style.display = "flex";
+                    row.style.alignItems = "baseline";
+                    row.style.gap = "8px";
+
+                    // 日付
+                    const dateElement = document.createElement("p");
+
+                    dateElement.textContent = article.date
+                        ? "(" + article.date + ")"
+                        : "(日付不明)";
+
+                    dateElement.style.color = "black";
+                    dateElement.style.margin = "0";
+
+                    // 記事タイトルへのリンク
                     const link = document.createElement("a");
 
                     link.href =
                         "#zakki/" + encodeURIComponent(folder) +
-                        "/" + encodeURIComponent(file.name);
+                        "/" + encodeURIComponent(article.file);
 
-                    link.textContent = file.name.replace(/\.txt$/i, "");
+                    link.textContent =
+                        article.file.replace(/\.txt$/i, "");
 
-                    li.appendChild(link);
+                    row.appendChild(dateElement);
+                    row.appendChild(link);
+
+                    li.appendChild(row);
                     list.appendChild(li);
                 });
 
@@ -1035,13 +1084,24 @@
             const titleElement =
                 document.getElementById("zakki-article-title");
 
+            const dateElement =
+                document.getElementById("zakki-article-date");
+
             const bodyElement =
                 document.getElementById("zakki-article-body");
 
-            titleElement.textContent = filename.replace(/\.txt$/i, "");
+            titleElement.textContent =
+                filename.replace(/\.txt$/i, "");
+
+            dateElement.textContent = "(日付取得中...)";
             bodyElement.textContent = "読み込み中...";
 
             try {
+                // 作成日を表示
+                dateElement.textContent =
+                    await getZakkiCreatedDate(folder, filename);
+
+                // 記事本文を取得
                 const fileUrl =
                     "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
                     encodeURIComponent("雑記") + "/" +
@@ -1054,8 +1114,10 @@
                     throw new Error("記事の読み込みに失敗しました");
                 }
 
+                // UTF-8として読み込む
                 const buffer = await response.arrayBuffer();
                 const decoder = new TextDecoder("utf-8");
+
                 bodyElement.textContent = decoder.decode(buffer);
 
             } catch (error) {
@@ -1064,6 +1126,7 @@
             }
         }
 
+        // ページ最上部へ移動
         function scrollToTop() {
             window.scrollTo(0, 0);
             document.documentElement.scrollTop = 0;
@@ -1079,6 +1142,7 @@
             const parts = id.split("/");
 
             const pageId = parts[0];
+
             const isArticle =
                 pageId === "zakki" &&
                 parts.length >= 3;
@@ -1096,33 +1160,40 @@
             const articleContent =
                 document.getElementById("zakki-article-content");
 
+            // トップページと各ページの表示切り替え
             home.hidden = isNormalPage || isArticle;
             section.hidden = !isNormalPage && !isArticle;
 
             // 各コンテンツの表示切り替え
             Object.keys(sections).forEach(key => {
-                const content = document.getElementById(key + "-content");
+                const content =
+                    document.getElementById(key + "-content");
 
                 if (content) {
                     content.hidden = key !== id || isArticle;
                 }
             });
 
+            // 記事表示部分の切り替え
             articleContent.hidden = !isArticle;
 
             if (isArticle) {
                 title.hidden = true;
+
                 document.title =
-                    filename.replace(/\.txt$/i, "") + " - ホームページ";
+                    filename.replace(/\.txt$/i, "") +
+                    " - ホームページ";
 
                 await showZakkiArticle(folder, filename);
 
             } else if (isNormalPage) {
                 title.hidden = false;
                 title.textContent = sections[id];
-                document.title = sections[id] + " - ホームページ";
 
-                // そのページに対応する雑記フォルダを読み込む
+                document.title =
+                    sections[id] + " - ホームページ";
+
+                // そのページに対応する雑記記事一覧を読み込む
                 loadZakkiList(id);
 
             } else {
@@ -1169,21 +1240,14 @@
 
             if (!link) return;
 
-            if (link.closest("#zakki-article-content") &&
-                link.classList.contains("back")) {
-                event.preventDefault();
-
-                const folder = location.hash.split("/")[1];
-                goToPage(decodeURIComponent(folder || "music"));
-                return;
-            }
-
+            // トップページへ戻る
             if (link.classList.contains("back")) {
                 event.preventDefault();
                 goToPage("");
                 return;
             }
 
+            // 雑記記事へのリンク
             if (link.matches('a[href^="#zakki/"]')) {
                 event.preventDefault();
                 goToPage(link.getAttribute("href").slice(1));
@@ -1204,6 +1268,8 @@
         showPage();
         scrollToTop();
     </script>
+
+
 
 </body>
 </html>
