@@ -67,6 +67,10 @@
             margin-top: 70px;
         }
 
+        .article-back {
+            margin-top: 0px !important;
+        }
+
         [hidden] {
             display: none !important;
         }
@@ -126,7 +130,8 @@
             </li>
         </ul>
 
-        <h2>項目別</h2>
+        <h2 style="margin-top: 25px;">項目別</h2>
+
         <ul class="menu">
             <li><a href="#game">ゲーム作り</a></li>
             <li><a href="#music">曲作り</a></li>
@@ -140,6 +145,26 @@
             <li><a href="#misc">来歴、好物</a></li>
             <li><a href="#links">リンク集</a></li>
         </ul>
+
+        <h2 style="margin-top: 40px;">雑記一覧</h2>
+
+        <table id="zakki-all-table"
+               style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr>
+                    <th style="border-bottom: 1px solid #999; padding: 6px;">日付</th>
+                    <th style="border-bottom: 1px solid #999; padding: 6px;">ジャンル</th>
+                    <th style="border-bottom: 1px solid #999; padding: 6px;">タイトル</th>
+                </tr>
+            </thead>
+            <tbody id="zakki-all-list">
+                <tr>
+                    <td colspan="3" style="padding: 6px;">読み込み中...</td>
+                </tr>
+            </tbody>
+        </table>
+
+
     </div>
 
 
@@ -941,8 +966,8 @@
 
 
         </div>
-  
-        
+
+
         <div id="zakki-article-content" hidden>
             <div style="position: relative; text-align: center; border-bottom: 1px solid black; padding-bottom: 5px;">
                 <h1 id="zakki-article-title" style="margin: 0; border-bottom: none;"></h1>
@@ -951,15 +976,20 @@
 
             <pre id="zakki-article-body"
                  style="white-space: pre-wrap; overflow-wrap: break-word; font-family: inherit;"></pre>
+
+            <p style="margin-top: 40px;">
+                <a id="zakki-category-back" href="#">ジャンルのページに戻る</a>
+            </p>
         </div>
 
 
 
 
 
-        <a class="back" href="#">トップページに戻る</a>
+        <a class="back article-back" href="#">トップページに戻る</a>
 
     </div>
+
 
 
 
@@ -1091,6 +1121,108 @@
             }
         }
 
+
+        // 全ジャンルの雑記一覧を新しい順に表示
+        async function loadZakkiAllList() {
+            const list = document.getElementById("zakki-all-list");
+
+            if (!list) return;
+
+            try {
+                const articles = await loadZakkiArticles();
+
+                // 全ジャンルの記事を一つの配列にまとめる
+                const allArticles = [];
+
+                Object.keys(articles).forEach(folder => {
+                    (articles[folder] || []).forEach(article => {
+                        allArticles.push({
+                            folder: folder,
+                            file: article.file,
+                            date: article.date || ""
+                        });
+                    });
+                });
+
+                // 日付の新しい順に並べる
+                allArticles.sort((a, b) => {
+                    return b.date.localeCompare(a.date);
+                });
+
+                list.innerHTML = "";
+
+                if (allArticles.length === 0) {
+                    const row = document.createElement("tr");
+                    const cell = document.createElement("td");
+
+                    cell.colSpan = 3;
+                    cell.textContent = "記事はまだありません。";
+                    cell.style.padding = "6px";
+
+                    row.appendChild(cell);
+                    list.appendChild(row);
+                    return;
+                }
+
+                allArticles.forEach(article => {
+                    const row = document.createElement("tr");
+
+                    const dateCell = document.createElement("td");
+                    dateCell.textContent = article.date || "日付不明";
+
+                    const genreCell = document.createElement("td");
+                    const genreLink = document.createElement("a");
+
+                    genreLink.href = "#" + article.folder;
+                    genreLink.textContent =
+                        sections[article.folder] || article.folder;
+
+                    genreLink.addEventListener("click", event => {
+                        event.preventDefault();
+                        goToPage(article.folder, true);
+                    });
+
+                    genreCell.appendChild(genreLink);
+
+                    const titleCell = document.createElement("td");
+                    const link = document.createElement("a");
+
+                    link.href =
+                        "#zakki/" + encodeURIComponent(article.folder) +
+                        "/" + encodeURIComponent(article.file);
+
+                    link.textContent =
+                        article.file.replace(/\.txt$/i, "");
+
+                    titleCell.appendChild(link);
+
+                    [dateCell, genreCell, titleCell].forEach(cell => {
+                        cell.style.padding = "6px";
+                        cell.style.borderBottom = "1px solid #ddd";
+                        row.appendChild(cell);
+                    });
+
+                    list.appendChild(row);
+                });
+
+            } catch (error) {
+                list.innerHTML = "";
+
+                const row = document.createElement("tr");
+                const cell = document.createElement("td");
+
+                cell.colSpan = 3;
+                cell.textContent = "記事一覧を読み込めませんでした。";
+                cell.style.padding = "6px";
+
+                row.appendChild(cell);
+                list.appendChild(row);
+
+                console.error(error);
+            }
+        }
+
+
         // 記事本文を取得
         async function showZakkiArticle(folder, filename) {
             const titleElement =
@@ -1102,11 +1234,27 @@
             const bodyElement =
                 document.getElementById("zakki-article-body");
 
+            const categoryBackLink =
+                document.getElementById("zakki-category-back");
+
             titleElement.textContent =
                 filename.replace(/\.txt$/i, "");
 
             dateElement.textContent = "(日付取得中...)";
             bodyElement.textContent = "読み込み中...";
+
+            // 記事のジャンルに戻るリンクを設定
+            categoryBackLink.textContent =
+                (sections[folder] || folder) + "に戻る";
+
+            categoryBackLink.href = "#" + folder;
+
+            categoryBackLink.onclick = event => {
+                event.preventDefault();
+
+                // ジャンルページの一番下までスクロール
+                goToPage(folder, true);
+            };
 
             try {
                 // 作成日とジャンルを表示
@@ -1140,12 +1288,24 @@
                 console.error(error);
             }
         }
+
+
         // ページ最上部へ移動
         function scrollToTop() {
             window.scrollTo(0, 0);
             document.documentElement.scrollTop = 0;
             document.body.scrollTop = 0;
         }
+
+
+        // ページ最下部へ移動
+        function scrollToBottom() {
+            window.scrollTo({
+                top: document.documentElement.scrollHeight,
+                behavior: "smooth"
+            });
+        }
+
 
         // ページ表示
         async function showPage(id = location.hash.slice(1)) {
@@ -1178,6 +1338,12 @@
             home.hidden = isNormalPage || isArticle;
             section.hidden = !isNormalPage && !isArticle;
 
+            const backLink = document.querySelector("#section > .back");
+
+            if (backLink) {
+                backLink.classList.toggle("article-back", isArticle);
+            }
+
             // 各コンテンツの表示切り替え
             Object.keys(sections).forEach(key => {
                 const content =
@@ -1208,11 +1374,13 @@
                     sections[id] + " - ホームページ";
 
                 // そのページに対応する雑記記事一覧を読み込む
-                loadZakkiList(id);
+                await loadZakkiList(id);
 
             } else {
                 title.hidden = false;
                 document.title = "ホームページ";
+
+                await loadZakkiAllList();
             }
 
             // ゲームページへの移動・離脱
@@ -1223,22 +1391,31 @@
             }
         }
 
+
         // URLを更新してページを切り替える
-        function goToPage(id) {
+        function goToPage(id, scrollBottom = false) {
             const newUrl = id
                 ? location.pathname + location.search + "#" + id
                 : location.pathname + location.search;
 
             history.pushState(null, "", newUrl);
-            showPage(id);
 
-            requestAnimationFrame(() => {
+            // ページの切り替えと読み込みが完了してからスクロール
+            showPage(id).then(() => {
+                // まずページの一番上に移動
                 scrollToTop();
-                requestAnimationFrame(scrollToTop);
+
+                if (scrollBottom) {
+                    // 一番上に移動した後、最下部までスクロール
+                    requestAnimationFrame(() => {
+                        scrollToBottom();
+                    });
+                }
             });
 
             return false;
         }
+
 
         // トップページの項目別リンク
         document.querySelectorAll("#home a[href^='#']").forEach(link => {
@@ -1247,6 +1424,7 @@
                 goToPage(link.getAttribute("href").slice(1));
             });
         });
+
 
         // ページ内リンクと戻るリンク
         document.getElementById("section").addEventListener("click", event => {
@@ -1268,15 +1446,14 @@
             }
         });
 
+
         // ブラウザの戻る・進む操作
         window.addEventListener("popstate", () => {
-            showPage();
-
-            requestAnimationFrame(() => {
-                scrollToTop();
+            showPage().then(() => {
                 requestAnimationFrame(scrollToTop);
             });
         });
+
 
         // 初期表示
         showPage();
@@ -1284,6 +1461,15 @@
     </script>
 
 
+    <footer style="text-align: left; margin-top: 50px; padding: 15px 0; font-size: 0.9em;">
+        <div>© 2026 faz.</div>
+        <div>
+            Licensed under
+            <a href="https://creativecommons.org/licenses/by/4.0/">
+                CC BY 4.0
+            </a>.
+        </div>
+    </footer>
 
 </body>
 </html>
