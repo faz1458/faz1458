@@ -991,8 +991,6 @@
 
 
 
-
-
     <script>
         const sections = {
             game: "ゲーム作り",
@@ -1120,7 +1118,6 @@
             }
         }
 
-
         // 全ジャンルの雑記一覧を新しい順に表示
         async function loadZakkiAllList() {
             const list = document.getElementById("zakki-all-list");
@@ -1130,7 +1127,6 @@
             try {
                 const articles = await loadZakkiArticles();
 
-                // 全ジャンルの記事を一つの配列にまとめる
                 const allArticles = [];
 
                 Object.keys(articles).forEach(folder => {
@@ -1143,7 +1139,6 @@
                     });
                 });
 
-                // 日付の新しい順に並べる
                 allArticles.sort((a, b) => {
                     return b.date.localeCompare(a.date);
                 });
@@ -1221,7 +1216,75 @@
             }
         }
 
+        // 音源プレイヤーの共通設定
+        function initializeAudioPlayers(container = document) {
+            container.querySelectorAll("audio").forEach(audio => {
+                if (audio.dataset.initialized === "true") return;
 
+                audio.dataset.initialized = "true";
+
+                // 別の音源を再生したら、ほかの音源を停止
+                audio.addEventListener("play", () => {
+                    document.querySelectorAll("audio").forEach(otherAudio => {
+                        if (otherAudio !== audio) {
+                            otherAudio.pause();
+                            otherAudio.currentTime = 0;
+                        }
+                    });
+                });
+
+                // プレイヤーとボタンをまとめる
+                const wrapper = document.createElement("div");
+
+                wrapper.style.display = "flex";
+                wrapper.style.alignItems = "center";
+                wrapper.style.gap = "8px";
+                wrapper.style.width = "100%";
+                wrapper.style.margin = "10px 0";
+
+                audio.parentNode.insertBefore(wrapper, audio);
+                wrapper.appendChild(audio);
+
+                audio.style.flex = "1";
+                audio.style.minWidth = "0";
+
+                // ループボタン
+                const loopButton = document.createElement("button");
+
+                loopButton.type = "button";
+                loopButton.textContent = "🔁";
+                loopButton.style.cursor = "pointer";
+                loopButton.style.padding = "5px 10px";
+                loopButton.style.border = "1px solid #ccc";
+                loopButton.style.borderRadius = "5px";
+                loopButton.style.backgroundColor = "white";
+                loopButton.style.color = "black";
+
+                loopButton.setAttribute("aria-pressed", "false");
+
+                loopButton.addEventListener("click", () => {
+                    audio.loop = !audio.loop;
+
+                    loopButton.style.backgroundColor =
+                        audio.loop ? "#1677ff" : "white";
+
+                    loopButton.style.color =
+                        audio.loop ? "white" : "black";
+
+                    loopButton.setAttribute(
+                        "aria-pressed",
+                        String(audio.loop)
+                    );
+                });
+
+                wrapper.appendChild(loopButton);
+            });
+        }
+
+        // 最初からHTMLにある音源を初期化
+        initializeAudioPlayers();
+
+        // 記事を表示
         async function showZakkiArticle(folder, filename) {
             const titleElement =
                 document.getElementById("zakki-article-title");
@@ -1249,8 +1312,6 @@
 
             categoryBackLink.onclick = event => {
                 event.preventDefault();
-
-                // ジャンルページの一番下までスクロール
                 goToPage(folder, true);
             };
 
@@ -1269,8 +1330,9 @@
                     encodeURIComponent(folder) + "/" +
                     encodeURIComponent(filename);
 
-                // キャッシュを避けて最新の本文を取得
-                const response = await fetch(fileUrl + "?v=" + Date.now());
+                const response = await fetch(fileUrl + "?v=" + Date.now(), {
+                    cache: "no-store"
+                });
 
                 if (!response.ok) {
                     throw new Error("記事の読み込みに失敗しました。");
@@ -1299,8 +1361,10 @@
                 formattedText = formattedText.replace(
                     /https?:\/\/[^\s<]+/g,
                     url => {
-                        // URL末尾の句読点などはリンクから除外
-                        const match = url.match(/^(.*?)([。、．，）)】」』]*)$/);
+                        const match = url.match(
+                            /^(.*?)([。、．，）)】」』]*)$/
+                        );
+
                         const linkUrl = match[1];
                         const punctuation = match[2];
 
@@ -1310,7 +1374,39 @@
                     }
                 );
 
+                // MP3・WAVの音源指定をプレイヤーに変換
+                formattedText = formattedText.replace(
+                    /\[\[audio:([^\]]+\.(?:mp3|wav))\]\]/gi,
+                    (match, filename) => {
+                        const audioFilename = filename.trim();
+                        const extension =
+                            audioFilename.split(".").pop().toLowerCase();
+
+                        const mimeTypes = {
+                            mp3: "audio/mpeg",
+                            wav: "audio/wav"
+                        };
+
+                        const mimeType = mimeTypes[extension];
+
+                        const audioUrl =
+                            "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
+                            encodeURIComponent("雑記") + "/" +
+                            encodeURIComponent("音源") + "/" +
+                            encodeURIComponent(audioFilename);
+
+                        return '<audio controls preload="none" style="width: 100%;">' +
+                            '<source src="' + audioUrl +
+                            '" type="' + mimeType + '">' +
+                            '</audio>';
+                    }
+                );
+
+                // 記事本文を表示
                 bodyElement.innerHTML = formattedText;
+
+                // 記事内の音源を初期化
+                initializeAudioPlayers(bodyElement);
 
             } catch (error) {
                 bodyElement.textContent = "記事を読み込めませんでした。";
@@ -1318,15 +1414,12 @@
             }
         }
 
-
-
         // ページ最上部へ移動
         function scrollToTop() {
             window.scrollTo(0, 0);
             document.documentElement.scrollTop = 0;
             document.body.scrollTop = 0;
         }
-
 
         // ページ最下部へ移動
         function scrollToBottom() {
@@ -1336,7 +1429,6 @@
             });
         }
 
-
         // ページ表示
         async function showPage(id = location.hash.slice(1)) {
             const home = document.getElementById("home");
@@ -1344,7 +1436,6 @@
             const title = document.getElementById("section-title");
 
             const parts = id.split("/");
-
             const pageId = parts[0];
 
             const isArticle =
@@ -1403,7 +1494,6 @@
                 document.title =
                     sections[id] + " - ホームページ";
 
-                // そのページに対応する雑記記事一覧を読み込む
                 await loadZakkiList(id);
 
             } else {
@@ -1421,7 +1511,6 @@
             }
         }
 
-
         // URLを更新してページを切り替える
         function goToPage(id, scrollBottom = false) {
             const newUrl = id
@@ -1430,13 +1519,10 @@
 
             history.pushState(null, "", newUrl);
 
-            // ページの切り替えと読み込みが完了してからスクロール
             showPage(id).then(() => {
-                // まずページの一番上に移動
                 scrollToTop();
 
                 if (scrollBottom) {
-                    // 一番上に移動した後、最下部までスクロール
                     requestAnimationFrame(() => {
                         scrollToBottom();
                     });
@@ -1446,7 +1532,6 @@
             return false;
         }
 
-
         // トップページの項目別リンク
         document.querySelectorAll("#home a[href^='#']").forEach(link => {
             link.addEventListener("click", event => {
@@ -1454,7 +1539,6 @@
                 goToPage(link.getAttribute("href").slice(1));
             });
         });
-
 
         // ページ内リンクと戻るリンク
         document.getElementById("section").addEventListener("click", event => {
@@ -1476,7 +1560,6 @@
             }
         });
 
-
         // ブラウザの戻る・進む操作
         window.addEventListener("popstate", () => {
             showPage().then(() => {
@@ -1484,11 +1567,14 @@
             });
         });
 
-
         // 初期表示
         showPage();
         scrollToTop();
     </script>
+
+
+
+
 
 
     <footer style="text-align: left; margin-top: 50px; padding: 15px 0; font-size: 0.9em;">
