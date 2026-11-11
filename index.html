@@ -216,8 +216,15 @@
             <h2 style="margin-top: 50px;">ゲーム</h2>
             <p>まだ何も無し。いつか、3DCGをガッツリ使ったゲームを作りたいと思っています。</p>
 
+
+
             <h2 style="margin-top: 50px;">雑記</h2>
-            <p>まだ何も無し。これから書きます。</p>
+            <ul class="zakki-list"
+                data-zakki-folder="3dcg"
+                style="list-style: none; padding-left: 0; margin-left: 0;">
+            </ul>
+
+
         </div>
 
         <div id="bunsyou-content" hidden>
@@ -703,8 +710,9 @@
             </audio>
 
             <h2 style="margin-top: 50px;">雑記</h2>
-            <ul id="zakki-music-list">
-                <li>記事を読み込んでいます...</li>
+            <ul class="zakki-list"
+                data-zakki-folder="music"
+                style="list-style: none; padding-left: 0; margin-left: 0;">
             </ul>
 
             <script>
@@ -908,17 +916,23 @@
                 </iframe>
             </div>
 
+
+
             <h2>雑記</h2>
-            <p>まだ何も無し。これから書きます。</p>
+            <ul class="zakki-list"
+                data-zakki-folder="game"
+                style="list-style: none; padding-left: 0; margin-left: 0;">
+            </ul>
+
+
         </div>
 
         <div id="zakki-article-content" hidden>
-            <h2 id="zakki-article-title"></h2>
+            <h1 id="zakki-article-title"></h1>
             <pre id="zakki-article-body"
                  style="white-space: pre-wrap; overflow-wrap: break-word; font-family: inherit;"></pre>
-            <a class="back" href="#music">曲作りに戻る</a>
+            <a class="back" href="#">曲作りに戻る</a>
         </div>
-
 
 
 
@@ -931,6 +945,7 @@
         <a class="back" href="#">トップページに戻る</a>
 
     </div>
+
 
 
     <script>
@@ -952,22 +967,26 @@
             history.scrollRestoration = "manual";
         }
 
-        // 雑記ファイルの一覧
-        const zakkiMusicApi =
-            "https://api.github.com/repos/faz1458/faz1458/contents/%E9%9B%91%E8%A8%98/music";
+        // 雑記フォルダの一覧を保存
+        const zakkiFiles = {};
 
-        let zakkiMusicFiles = [];
-
-        // 雑記一覧を取得
-        async function loadZakkiMusicList() {
-            const list = document.getElementById("zakki-music-list");
+        // GitHub APIから指定フォルダの記事一覧を取得
+        async function loadZakkiList(folder) {
+            const list = document.querySelector(
+                '.zakki-list[data-zakki-folder="' + folder + '"]'
+            );
 
             if (!list) return;
 
             list.innerHTML = "<li>記事を読み込んでいます...</li>";
 
             try {
-                const response = await fetch(zakkiMusicApi);
+                const apiUrl =
+                    "https://api.github.com/repos/faz1458/faz1458/contents/" +
+                    encodeURIComponent("雑記") + "/" +
+                    encodeURIComponent(folder);
+
+                const response = await fetch(apiUrl);
 
                 if (!response.ok) {
                     throw new Error("フォルダの読み込みに失敗しました");
@@ -975,31 +994,31 @@
 
                 const files = await response.json();
 
-                zakkiMusicFiles = files.filter(file =>
+                zakkiFiles[folder] = files.filter(file =>
                     file.type === "file" &&
                     file.name.toLowerCase().endsWith(".txt")
                 );
 
-                zakkiMusicFiles.sort((a, b) =>
+                zakkiFiles[folder].sort((a, b) =>
                     a.name.localeCompare(b.name, "ja")
                 );
 
                 list.innerHTML = "";
 
-                if (zakkiMusicFiles.length === 0) {
+                if (zakkiFiles[folder].length === 0) {
                     list.textContent = "記事はまだありません。";
                     return;
                 }
 
-                zakkiMusicFiles.forEach(file => {
+                zakkiFiles[folder].forEach(file => {
                     const li = document.createElement("li");
                     const link = document.createElement("a");
 
-                    const filename = file.name;
-                    const articleTitle = filename.replace(/\.txt$/i, "");
+                    link.href =
+                        "#zakki/" + encodeURIComponent(folder) +
+                        "/" + encodeURIComponent(file.name);
 
-                    link.href = "#zakki/music/" + encodeURIComponent(filename);
-                    link.textContent = articleTitle;
+                    link.textContent = file.name.replace(/\.txt$/i, "");
 
                     li.appendChild(link);
                     list.appendChild(li);
@@ -1011,24 +1030,22 @@
             }
         }
 
-        // 雑記の記事本文を取得
-        async function showZakkiMusicArticle(filename) {
+        // 記事本文を取得
+        async function showZakkiArticle(folder, filename) {
             const titleElement =
                 document.getElementById("zakki-article-title");
 
             const bodyElement =
                 document.getElementById("zakki-article-body");
 
-            const articleTitle = filename.replace(/\.txt$/i, "");
-
-            titleElement.textContent = articleTitle;
+            titleElement.textContent = filename.replace(/\.txt$/i, "");
             bodyElement.textContent = "読み込み中...";
 
             try {
-                // 一覧にない場合もGitHub上のファイルを直接取得
                 const fileUrl =
                     "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
-                    "雑記/music/" +
+                    encodeURIComponent("雑記") + "/" +
+                    encodeURIComponent(folder) + "/" +
                     encodeURIComponent(filename);
 
                 const response = await fetch(fileUrl);
@@ -1037,7 +1054,9 @@
                     throw new Error("記事の読み込みに失敗しました");
                 }
 
-                bodyElement.textContent = await response.text();
+                const buffer = await response.arrayBuffer();
+                const decoder = new TextDecoder("utf-8");
+                bodyElement.textContent = decoder.decode(buffer);
 
             } catch (error) {
                 bodyElement.textContent = "記事を読み込めませんでした。";
@@ -1058,26 +1077,29 @@
             const title = document.getElementById("section-title");
 
             const parts = id.split("/");
-            const pageId = parts[0];
 
+            const pageId = parts[0];
             const isArticle =
                 pageId === "zakki" &&
-                parts[1] === "music" &&
-                Boolean(parts[2]);
+                parts.length >= 3;
 
-            const articleFilename = isArticle
+            const folder = isArticle
+                ? decodeURIComponent(parts[1])
+                : null;
+
+            const filename = isArticle
                 ? decodeURIComponent(parts.slice(2).join("/"))
                 : null;
+
+            const isNormalPage = Boolean(sections[id]);
 
             const articleContent =
                 document.getElementById("zakki-article-content");
 
-            const isNormalPage = Boolean(sections[id]);
-
             home.hidden = isNormalPage || isArticle;
             section.hidden = !isNormalPage && !isArticle;
 
-            // 各コンテンツの表示を切り替える
+            // 各コンテンツの表示切り替え
             Object.keys(sections).forEach(key => {
                 const content = document.getElementById(key + "-content");
 
@@ -1086,33 +1108,29 @@
                 }
             });
 
-            // 記事表示の切り替え
             articleContent.hidden = !isArticle;
 
             if (isArticle) {
                 title.hidden = true;
                 document.title =
-                    articleFilename.replace(/\.txt$/i, "") +
-                    " - ホームページ";
+                    filename.replace(/\.txt$/i, "") + " - ホームページ";
 
-                await showZakkiMusicArticle(articleFilename);
+                await showZakkiArticle(folder, filename);
 
             } else if (isNormalPage) {
                 title.hidden = false;
                 title.textContent = sections[id];
                 document.title = sections[id] + " - ホームページ";
 
-                // 曲作りページを開いたときに雑記一覧を取得
-                if (id === "music") {
-                    loadZakkiMusicList();
-                }
+                // そのページに対応する雑記フォルダを読み込む
+                loadZakkiList(id);
 
             } else {
                 title.hidden = false;
                 document.title = "ホームページ";
             }
 
-            // ゲームページへの移動・離脱を処理する
+            // ゲームページへの移動・離脱
             if (id === "game") {
                 window.startEmbeddedGame();
             } else {
@@ -1151,22 +1169,21 @@
 
             if (!link) return;
 
-            // 記事ページから曲作りに戻る
             if (link.closest("#zakki-article-content") &&
                 link.classList.contains("back")) {
                 event.preventDefault();
-                goToPage("music");
+
+                const folder = location.hash.split("/")[1];
+                goToPage(decodeURIComponent(folder || "music"));
                 return;
             }
 
-            // 通常のトップページへの戻るリンク
             if (link.classList.contains("back")) {
                 event.preventDefault();
                 goToPage("");
                 return;
             }
 
-            // 雑記記事へのリンク
             if (link.matches('a[href^="#zakki/"]')) {
                 event.preventDefault();
                 goToPage(link.getAttribute("href").slice(1));
@@ -1176,6 +1193,7 @@
         // ブラウザの戻る・進む操作
         window.addEventListener("popstate", () => {
             showPage();
+
             requestAnimationFrame(() => {
                 scrollToTop();
                 requestAnimationFrame(scrollToTop);
@@ -1186,5 +1204,6 @@
         showPage();
         scrollToTop();
     </script>
+
 </body>
 </html>
