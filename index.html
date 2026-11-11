@@ -1169,21 +1169,256 @@
 
 
 
+
         function initializeAudioPlayers(container = document) {
+
+            // 固定再生バーを作成
+            let playbackBar = document.getElementById("floating-audio-player");
+
+            if (!playbackBar) {
+                playbackBar = document.createElement("div");
+                playbackBar.id = "floating-audio-player";
+
+                playbackBar.style.position = "fixed";
+                playbackBar.style.bottom = "15px";
+                playbackBar.style.left = "50%";
+                playbackBar.style.transform = "translateX(-50%)";
+                playbackBar.style.width = "calc(100% - 30px)";
+                playbackBar.style.maxWidth = "550px";
+                playbackBar.style.boxSizing = "border-box";
+                playbackBar.style.zIndex = "99999";
+                playbackBar.style.display = "none";
+                playbackBar.style.alignItems = "center";
+                playbackBar.style.flexWrap = "wrap";
+                playbackBar.style.gap = "10px";
+                playbackBar.style.padding = "12px";
+                playbackBar.style.backgroundColor = "white";
+                playbackBar.style.color = "black";
+                playbackBar.style.border = "1px solid #ccc";
+                playbackBar.style.borderRadius = "10px";
+                playbackBar.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
+
+                // ファイル名表示
+                const fileNameLabel = document.createElement("span");
+                fileNameLabel.style.fontSize = "13px";
+                fileNameLabel.style.maxWidth = "120px";
+                fileNameLabel.style.overflow = "hidden";
+                fileNameLabel.style.textOverflow = "ellipsis";
+                fileNameLabel.style.whiteSpace = "nowrap";
+                fileNameLabel.style.flexShrink = "0";
+
+                // 再生・一時停止ボタン
+                const playButton = document.createElement("button");
+                playButton.textContent = "⏸";
+                playButton.type = "button";
+                playButton.style.cursor = "pointer";
+
+                // 再生位置
+                const seekBar = document.createElement("input");
+                seekBar.type = "range";
+                seekBar.min = "0";
+                seekBar.max = "1000";
+                seekBar.value = "0";
+                seekBar.style.flex = "1";
+                seekBar.style.minWidth = "80px";
+                seekBar.style.cursor = "pointer";
+
+                // 時間表示
+                const timeLabel = document.createElement("span");
+                timeLabel.textContent = "0:00 / 0:00";
+                timeLabel.style.fontSize = "13px";
+                timeLabel.style.whiteSpace = "nowrap";
+
+                // 音量調整
+                const volumeBar = document.createElement("input");
+                volumeBar.type = "range";
+                volumeBar.min = "0";
+                volumeBar.max = "1";
+                volumeBar.step = "0.01";
+                volumeBar.value = "1";
+                volumeBar.style.width = "80px";
+                volumeBar.style.cursor = "pointer";
+
+                // ループボタン
+                const loopButton = document.createElement("button");
+                loopButton.type = "button";
+                loopButton.textContent = "🔁";
+                loopButton.style.cursor = "pointer";
+                loopButton.style.padding = "5px 10px";
+                loopButton.style.border = "1px solid #ccc";
+                loopButton.style.borderRadius = "5px";
+                loopButton.style.backgroundColor = "white";
+                loopButton.style.color = "black";
+
+                // 閉じるボタン
+                const closeButton = document.createElement("button");
+                closeButton.type = "button";
+                closeButton.textContent = "✕";
+                closeButton.style.position = "absolute";
+                closeButton.style.top = "-32px";
+                closeButton.style.right = "8px";
+                closeButton.style.width = "32px";
+                closeButton.style.height = "28px";
+                closeButton.style.border = "1px solid black";
+                closeButton.style.borderRadius = "4px";
+                closeButton.style.backgroundColor = "efefef";
+                closeButton.style.color = "black";
+                closeButton.style.fontSize = "20px";
+                closeButton.style.fontWeight = "bold";
+                closeButton.style.cursor = "pointer";
+                closeButton.style.display = "flex";
+                closeButton.style.alignItems = "center";
+                closeButton.style.justifyContent = "center";
+                closeButton.style.boxShadow = "0 2px 5px rgba(0,0,0,0.3)";
+
+                playbackBar.appendChild(fileNameLabel);
+                playbackBar.appendChild(playButton);
+                playbackBar.appendChild(seekBar);
+                playbackBar.appendChild(timeLabel);
+                playbackBar.appendChild(volumeBar);
+                playbackBar.appendChild(loopButton);
+                playbackBar.appendChild(closeButton);
+
+                document.body.appendChild(playbackBar);
+
+                // 現在の再生対象
+                let activeAudio = null;
+
+                // 時間を mm:ss 形式にする
+                function formatTime(seconds) {
+                    if (!Number.isFinite(seconds)) return "0:00";
+
+                    const minutes = Math.floor(seconds / 60);
+                    const remainingSeconds = Math.floor(seconds % 60);
+
+                    return minutes + ":" + String(remainingSeconds).padStart(2, "0");
+                }
+
+                // バーの表示内容を更新
+                function updateBar() {
+                    if (!activeAudio) return;
+
+                    const duration = activeAudio.duration;
+                    const currentTime = activeAudio.currentTime;
+
+                    if (Number.isFinite(duration) && duration > 0) {
+                        seekBar.value = String(
+                            (currentTime / duration) * 1000
+                        );
+                    } else {
+                        seekBar.value = "0";
+                    }
+
+                    timeLabel.textContent =
+                        formatTime(currentTime) + " / " + formatTime(duration);
+
+                    playButton.textContent =
+                        activeAudio.paused ? "▶" : "⏸";
+
+                    volumeBar.value = String(activeAudio.volume);
+
+                    loopButton.style.backgroundColor =
+                        activeAudio.loop ? "#1677ff" : "white";
+
+                    loopButton.style.color =
+                        activeAudio.loop ? "white" : "black";
+
+                    loopButton.setAttribute(
+                        "aria-pressed",
+                        String(activeAudio.loop)
+                    );
+                }
+
+                // 再生・一時停止
+                playButton.addEventListener("click", () => {
+                    if (!activeAudio) return;
+
+                    if (activeAudio.paused) {
+                        activeAudio.play().catch(error => console.error(error));
+                    } else {
+                        // 固定バーからの一時停止であることを記録
+                        activeAudio.dataset.pausedFromFloatingBar = "true";
+                        activeAudio.pause();
+                        updateBar();
+                    }
+                });
+
+                // 再生位置の変更
+                seekBar.addEventListener("input", () => {
+                    if (!activeAudio) return;
+                    if (!Number.isFinite(activeAudio.duration)) return;
+
+                    activeAudio.currentTime =
+                        (Number(seekBar.value) / 1000) * activeAudio.duration;
+                });
+
+                // 音量の変更
+                volumeBar.addEventListener("input", () => {
+                    if (!activeAudio) return;
+
+                    activeAudio.volume = Number(volumeBar.value);
+                });
+
+                // ループの切り替え
+                loopButton.addEventListener("click", () => {
+                    if (!activeAudio) return;
+
+                    activeAudio.loop = !activeAudio.loop;
+                    updateBar();
+                });
+
+                // ✕ボタン：音源を停止してバーを閉じる
+                closeButton.addEventListener("click", () => {
+                    if (activeAudio) {
+                        const audioToStop = activeAudio;
+
+                        // pauseイベントより先にバーを閉じる
+                        activeAudio = null;
+                        playbackBar.style.display = "none";
+
+                        audioToStop.pause();
+                        audioToStop.currentTime = 0;
+                    } else {
+                        playbackBar.style.display = "none";
+                    }
+                });
+
+                // 外部から参照する関数
+                playbackBar.updateBar = updateBar;
+
+                playbackBar.setActiveAudio = (audio) => {
+                    activeAudio = audio;
+
+                    const source = audio.currentSrc || audio.src;
+
+                    try {
+                        fileNameLabel.textContent = decodeURIComponent(
+                            source.split("/").pop().split("?")[0]
+                        );
+                    } catch {
+                        fileNameLabel.textContent =
+                            source.split("/").pop().split("?")[0];
+                    }
+
+                    fileNameLabel.title = fileNameLabel.textContent;
+
+                    playbackBar.style.display = "flex";
+                    updateBar();
+                };
+
+                playbackBar.hideBar = () => {
+                    activeAudio = null;
+                    playbackBar.style.display = "none";
+                };
+
+                playbackBar.getActiveAudio = () => activeAudio;
+            }
+
+            // 音源を初期化
             container.querySelectorAll("audio").forEach(audio => {
                 if (audio.dataset.initialized === "true") return;
 
                 audio.dataset.initialized = "true";
-
-                // 別の音源を再生したら、ほかの音源を停止
-                audio.addEventListener("play", () => {
-                    document.querySelectorAll("audio").forEach(otherAudio => {
-                        if (otherAudio !== audio) {
-                            otherAudio.pause();
-                            otherAudio.currentTime = 0;
-                        }
-                    });
-                });
 
                 // プレイヤーとボタンをまとめる
                 const wrapper = document.createElement("div");
@@ -1202,7 +1437,7 @@
                 audio.style.maxWidth = "100%";
                 audio.style.flex = "none";
 
-                // ループボタン
+                // インラインのループボタン
                 const loopButton = document.createElement("button");
 
                 loopButton.type = "button";
@@ -1229,11 +1464,69 @@
                         "aria-pressed",
                         String(audio.loop)
                     );
+
+                    if (playbackBar.getActiveAudio() === audio) {
+                        playbackBar.updateBar();
+                    }
                 });
 
                 wrapper.appendChild(loopButton);
+
+                // 別の音源を再生したら、ほかの音源を停止
+                audio.addEventListener("play", () => {
+                    playbackBar.setActiveAudio(audio);
+
+                    document.querySelectorAll("audio").forEach(otherAudio => {
+                        if (otherAudio !== audio) {
+                            otherAudio.pause();
+                            otherAudio.currentTime = 0;
+                        }
+                    });
+                });
+
+                // 一時停止イベント
+                audio.addEventListener("pause", () => {
+                    if (playbackBar.getActiveAudio() !== audio) return;
+
+                    // 固定バー内からの一時停止なら、バーを残す
+                    if (audio.dataset.pausedFromFloatingBar === "true") {
+                        delete audio.dataset.pausedFromFloatingBar;
+                        playbackBar.updateBar();
+                        return;
+                    }
+
+                    // 通常の再生バーから停止した場合は閉じる
+                    playbackBar.hideBar();
+                });
+
+                // 再生終了
+                audio.addEventListener("ended", () => {
+                    if (playbackBar.getActiveAudio() === audio) {
+                        playbackBar.hideBar();
+                    }
+                });
+
+                // 再生位置などの更新
+                audio.addEventListener("timeupdate", () => {
+                    if (playbackBar.getActiveAudio() === audio) {
+                        playbackBar.updateBar();
+                    }
+                });
+
+                audio.addEventListener("durationchange", () => {
+                    if (playbackBar.getActiveAudio() === audio) {
+                        playbackBar.updateBar();
+                    }
+                });
+
+                audio.addEventListener("volumechange", () => {
+                    if (playbackBar.getActiveAudio() === audio) {
+                        playbackBar.updateBar();
+                    }
+                });
             });
         }
+
 
 
         // 最初からHTMLにある音源を初期化
