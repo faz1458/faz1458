@@ -1643,6 +1643,7 @@
                     "<strong>$1</strong>"
                 );
 
+                // URLをリンクまたはYouTube動画に変換
                 formattedText = formattedText.replace(
                     /https?:\/\/[^\s<]+/g,
                     url => {
@@ -1653,6 +1654,23 @@
                         const linkUrl = match[1];
                         const punctuation = match[2];
 
+                        // YouTubeの動画IDを取得
+                        const youtubeMatch = linkUrl.match(
+                            /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&].*)?$/
+                        );
+
+                        // YouTubeなら動画を埋め込む
+                        if (youtubeMatch) {
+                            return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
+                                '<iframe ' +
+                                'src="https://www.youtube.com/embed/' + youtubeMatch[1] + '" ' +
+                                'style="width:100%; aspect-ratio:16/9; border:0;" ' +
+                                'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" ' +
+                                'allowfullscreen>' +
+                                '</iframe></div>' + punctuation;
+                        }
+
+                        // それ以外のURLは通常のリンク
                         return '<a href="' + linkUrl +
                             '" target="_blank" rel="noopener noreferrer">' +
                             linkUrl + '</a>' + punctuation;
