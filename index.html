@@ -1570,6 +1570,7 @@
 
 
 
+
         async function showZakkiArticle(folder, filename) {
             const titleElement =
                 document.getElementById("zakki-article-title");
@@ -1601,6 +1602,39 @@
             // すでに読み込んだ同じ記事なら、本文を作り直さない
             if (bodyElement.dataset.loadedArticle === articleKey) {
                 return;
+            }
+
+            // 再生中の音源を記事本文の外へ退避する
+            const playingAudio = Array.from(
+                bodyElement.querySelectorAll("audio")
+            ).find(audio => !audio.paused);
+
+            if (playingAudio) {
+                let persistentContainer =
+                    document.getElementById("persistent-audio-container");
+
+                // 退避先がなければ作成
+                if (!persistentContainer) {
+                    persistentContainer = document.createElement("div");
+                    persistentContainer.id = "persistent-audio-container";
+
+                    persistentContainer.style.position = "fixed";
+                    persistentContainer.style.left = "-10000px";
+                    persistentContainer.style.top = "0";
+                    persistentContainer.style.width = "1px";
+                    persistentContainer.style.height = "1px";
+                    persistentContainer.style.overflow = "hidden";
+
+                    document.body.appendChild(persistentContainer);
+                }
+
+                // 音源の親要素ごと移動する
+                const audioWrapper =
+                    playingAudio.parentElement === bodyElement
+                        ? playingAudio
+                        : playingAudio.parentElement;
+
+                persistentContainer.appendChild(audioWrapper);
             }
 
             dateElement.textContent = "(日付取得中...)";
