@@ -1677,7 +1677,8 @@
                     "<strong>$1</strong>"
                 );
 
-                // URLをリンクまたはYouTube動画に変換
+
+                // URLをリンクまたは動画に変換
                 formattedText = formattedText.replace(
                     /https?:\/\/[^\s<]+/g,
                     url => {
@@ -1693,6 +1694,11 @@
                             /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[?&].*)?$/
                         );
 
+                        // ニコニコ動画の動画IDを取得
+                        const niconicoMatch = linkUrl.match(
+                            /^https?:\/\/(?:www\.)?nicovideo\.jp\/watch\/([a-zA-Z0-9_-]+)(?:[?&].*)?$/
+                        );
+
                         // YouTubeなら動画を埋め込む
                         if (youtubeMatch) {
                             return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
@@ -1704,12 +1710,23 @@
                                 '</iframe></div>' + punctuation;
                         }
 
+                        // ニコニコ動画なら動画を埋め込む
+                        if (niconicoMatch) {
+                            return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
+                                '<iframe ' +
+                                'src="https://embed.nicovideo.jp/watch/' + niconicoMatch[1] + '" ' +
+                                'style="width:100%; aspect-ratio:16/9; border:0;" ' +
+                                'allowfullscreen>' +
+                                '</iframe></div>' + punctuation;
+                        }
+
                         // それ以外のURLは通常のリンク
                         return '<a href="' + linkUrl +
                             '" target="_blank" rel="noopener noreferrer">' +
                             linkUrl + '</a>' + punctuation;
                     }
                 );
+
 
                 // 雑記/音源 と ルート/music の両方に対応
                 // MP3・WAV の両方に対応
