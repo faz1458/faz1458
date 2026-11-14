@@ -1576,6 +1576,7 @@
 
 
 
+
         async function showZakkiArticle(folder, filename) {
             const titleElement =
                 document.getElementById("zakki-article-title");
@@ -1797,13 +1798,25 @@
                             encodeURIComponent("画像") + "/" +
                             encodedFilename;
 
-                        return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
+                        const altText = imageFilename
+                            .replace(/&/g, "&amp;")
+                            .replace(/"/g, "&quot;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;");
+
+                        return '<div style="max-width:800px; width:100%; margin:10px 0; padding:0; line-height:0;">' +
                             '<img src="' + imageUrl + '" ' +
-                            'alt="' + imageFilename.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '" ' +
+                            'alt="' + altText + '" ' +
                             'loading="lazy" ' +
-                            'style="display:block; max-width:100%; height:auto;">' +
+                            'style="display:block; max-width:100%; height:auto; margin:0; padding:0;">' +
                             '</div>';
                     }
+                );
+
+                // 画像の直後にある改行・空白を除去
+                formattedText = formattedText.replace(
+                    /(<\/div>)[\t \r\n]+/g,
+                    "$1"
                 );
 
                 bodyElement.innerHTML = formattedText;
@@ -1829,6 +1842,7 @@
                 console.error(error);
             }
         }
+
 
 
         // ページ最上部へ移動
