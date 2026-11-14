@@ -1053,51 +1053,55 @@
                     return;
                 }
 
-                zakkiFiles[folder].forEach(article => {
-                    const li = document.createElement("li");
+                // 日付の新しい順に並べ替える
+                [...zakkiFiles[folder]]
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .forEach(article => {
+                        const li = document.createElement("li");
 
-                    li.style.listStyle = "none";
-                    li.style.padding = "0";
-                    li.style.margin = "0 0 5px 0";
+                        li.style.listStyle = "none";
+                        li.style.padding = "0";
+                        li.style.margin = "0 0 5px 0";
 
-                    const row = document.createElement("div");
+                        const row = document.createElement("div");
 
-                    row.style.display = "flex";
-                    row.style.alignItems = "baseline";
-                    row.style.gap = "8px";
+                        row.style.display = "flex";
+                        row.style.alignItems = "baseline";
+                        row.style.gap = "8px";
 
-                    // 日付
-                    const dateElement = document.createElement("p");
+                        // 日付
+                        const dateElement = document.createElement("p");
 
-                    dateElement.textContent = article.date
-                        ? "(" + article.date + ")"
-                        : "(日付不明)";
+                        dateElement.textContent = article.date
+                            ? "(" + article.date + ")"
+                            : "(日付不明)";
 
-                    dateElement.style.color = "black";
-                    dateElement.style.margin = "0";
+                        dateElement.style.color = "black";
+                        dateElement.style.margin = "0";
 
-                    // 記事タイトルへのリンク
-                    const link = document.createElement("a");
+                        // 記事タイトルへのリンク
+                        const link = document.createElement("a");
 
-                    link.href =
-                        "#zakki/" + encodeURIComponent(folder) +
-                        "/" + encodeURIComponent(article.file);
+                        link.href =
+                            "#zakki/" + encodeURIComponent(folder) +
+                            "/" + encodeURIComponent(article.file);
 
-                    link.textContent =
-                        article.file.replace(/\.txt$/i, "");
+                        link.textContent =
+                            article.file.replace(/\.txt$/i, "");
 
-                    row.appendChild(dateElement);
-                    row.appendChild(link);
+                        row.appendChild(dateElement);
+                        row.appendChild(link);
 
-                    li.appendChild(row);
-                    list.appendChild(li);
-                });
+                        li.appendChild(row);
+                        list.appendChild(li);
+                    });
 
             } catch (error) {
                 list.textContent = "記事一覧を読み込めませんでした。";
                 console.error(error);
             }
         }
+
 
         // 全ジャンルの雑記一覧を新しい順に表示
         async function loadZakkiAllList() {
@@ -1571,6 +1575,7 @@
 
 
 
+
         async function showZakkiArticle(folder, filename) {
             const titleElement =
                 document.getElementById("zakki-article-title");
@@ -1677,7 +1682,6 @@
                     "<strong>$1</strong>"
                 );
 
-
                 // URLをリンクまたは動画に変換
                 formattedText = formattedText.replace(
                     /https?:\/\/[^\s<]+/g,
@@ -1727,7 +1731,6 @@
                     }
                 );
 
-
                 // 雑記/音源 と ルート/music の両方に対応
                 // MP3・WAV の両方に対応
                 formattedText = formattedText.replace(
@@ -1773,6 +1776,33 @@
                             '<source src="' + audioUrl +
                             '" type="' + mimeType + '">' +
                             '</audio>';
+                    }
+                );
+
+                // 雑記/画像 の画像を表示
+                // JPG・JPEG・PNG・GIF・WebP に対応
+                formattedText = formattedText.replace(
+                    /\[\[image:([^\]]+\.(?:jpg|jpeg|png|gif|webp))\]\]/gi,
+                    (match, filename) => {
+                        const imageFilename = filename.trim();
+
+                        const encodedFilename = imageFilename
+                            .split("/")
+                            .map(part => encodeURIComponent(part))
+                            .join("/");
+
+                        const imageUrl =
+                            "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
+                            encodeURIComponent("雑記") + "/" +
+                            encodeURIComponent("画像") + "/" +
+                            encodedFilename;
+
+                        return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
+                            '<img src="' + imageUrl + '" ' +
+                            'alt="' + imageFilename.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '" ' +
+                            'loading="lazy" ' +
+                            'style="display:block; max-width:100%; height:auto;">' +
+                            '</div>';
                     }
                 );
 
