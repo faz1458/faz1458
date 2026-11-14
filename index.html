@@ -1574,6 +1574,7 @@
 
 
 
+
         // 雑記記事を表示
         async function showZakkiArticle(folder, filename) {
             const titleElement =
@@ -1780,9 +1781,13 @@
 
                 // 雑記/画像 の画像を表示
                 // JPG・JPEG・PNG・GIF・WebP に対応
+                // 画像前後の空行数を数えて余白に反映する
+                const lineHeight =
+                    parseFloat(getComputedStyle(bodyElement).lineHeight) || 24;
+
                 formattedText = formattedText.replace(
-                    /\[\[image:([^\]]+\.(?:jpg|jpeg|png|gif|webp))\]\]/gi,
-                    (match, filename) => {
+                    /((?:\r\n|\n|\r)*)\[\[image:([^\]\r\n]+\.(?:jpg|jpeg|png|gif|webp))\]\]((?:\r\n|\n|\r)*)/gi,
+                    (match, beforeNewlines, filename, afterNewlines) => {
                         const imageFilename = filename.trim();
 
                         const encodedFilename = imageFilename
@@ -1802,7 +1807,30 @@
                             .replace(/</g, "&lt;")
                             .replace(/>/g, "&gt;");
 
-                        return '<div style="max-width:800px; width:100%; margin:10px 0; padding:0; line-height:0;">' +
+                        // 改行数から空行数を計算
+                        // 改行1つは通常の行区切りなので、空行は0
+                        const beforeCount =
+                            (beforeNewlines.match(/\r\n|\n|\r/g) || []).length;
+
+                        const afterCount =
+                            (afterNewlines.match(/\r\n|\n|\r/g) || []).length;
+
+                        const emptyLinesBefore =
+                            Math.max(0, beforeCount - 1);
+
+                        const emptyLinesAfter =
+                            Math.max(0, afterCount - 1);
+
+                        // 基本余白10px + 空行数 × 1行分の高さ
+                        const marginTop =
+                            10 + emptyLinesBefore * lineHeight;
+
+                        const marginBottom =
+                            10 + emptyLinesAfter * lineHeight;
+
+                        return '<div style="max-width:800px; width:100%; margin:' +
+                            marginTop + 'px 0 ' + marginBottom +
+                            'px; padding:0; line-height:0;">' +
                             '<img src="' + imageUrl + '" ' +
                             'alt="' + altText + '" ' +
                             'loading="lazy" ' +
@@ -1837,6 +1865,7 @@
                 console.error(error);
             }
         }
+
 
 
 
