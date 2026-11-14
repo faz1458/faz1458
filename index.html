@@ -1780,6 +1780,17 @@
 
                 initializeAudioPlayers(bodyElement);
 
+                // 音源の直後に動画がある場合、間の余白をなくす
+                bodyElement.querySelectorAll("audio").forEach(audio => {
+                    const audioWrapper = audio.parentElement;
+                    const nextElement = audioWrapper.nextElementSibling;
+
+                    if (nextElement && nextElement.querySelector("iframe")) {
+                        audioWrapper.style.marginBottom = "0";
+                        nextElement.style.marginTop = "0";
+                    }
+                });
+
                 // 読み込み済みの記事として記録
                 bodyElement.dataset.loadedArticle = articleKey;
 
