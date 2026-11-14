@@ -1574,9 +1574,7 @@
 
 
 
-
-
-
+        // 雑記記事を表示
         async function showZakkiArticle(folder, filename) {
             const titleElement =
                 document.getElementById("zakki-article-title");
@@ -1813,11 +1811,8 @@
                     }
                 );
 
-                // 画像の直後にある改行・空白を除去
-                formattedText = formattedText.replace(
-                    /(<\/div>)[\t \r\n]+/g,
-                    "$1"
-                );
+                // テキストファイル内の改行・連続した空白を保持
+                bodyElement.style.whiteSpace = "pre-wrap";
 
                 bodyElement.innerHTML = formattedText;
 
@@ -1845,6 +1840,7 @@
 
 
 
+
         // ページ最上部へ移動
         function scrollToTop() {
             window.scrollTo(0, 0);
@@ -1859,6 +1855,12 @@
                 behavior: "smooth"
             });
         }
+
+
+        // 現在表示しているページ
+        let currentPageId = null;
+
+
 
         // ページ表示
         async function showPage(id = location.hash.slice(1)) {
@@ -1886,6 +1888,36 @@
             const articleContent =
                 document.getElementById("zakki-article-content");
 
+            // ページの識別
+            const nextPageId = isArticle
+                ? "zakki"
+                : isNormalPage
+                    ? id
+                    : "home";
+
+            // 前のページから移動する場合、動画を停止する
+            if (currentPageId !== null && currentPageId !== nextPageId) {
+                const previousContent =
+                    currentPageId === "zakki"
+                        ? articleContent
+                        : currentPageId === "home"
+                            ? home
+                            : document.getElementById(currentPageId + "-content");
+
+                if (previousContent) {
+                    previousContent.querySelectorAll("iframe").forEach(iframe => {
+                        // 元のURLを保存
+                        if (!iframe.dataset.originalSrc) {
+                            iframe.dataset.originalSrc =
+                                iframe.getAttribute("src") || "";
+                        }
+
+                        // 動画を停止して読み込みを解除
+                        iframe.src = "about:blank";
+                    });
+                }
+            }
+
             // トップページと各ページの表示切り替え
             home.hidden = isNormalPage || isArticle;
             section.hidden = !isNormalPage && !isArticle;
@@ -1908,6 +1940,25 @@
 
             // 記事表示部分の切り替え
             articleContent.hidden = !isArticle;
+
+            // 遷移先ページの動画を再読み込みする
+            const nextContent = isArticle
+                ? articleContent
+                : isNormalPage
+                    ? document.getElementById(id + "-content")
+                    : home;
+
+            if (nextContent) {
+                nextContent.querySelectorAll("iframe").forEach(iframe => {
+                    if (iframe.dataset.originalSrc) {
+                        iframe.src = iframe.dataset.originalSrc;
+                        delete iframe.dataset.originalSrc;
+                    }
+                });
+            }
+
+            // 現在のページを更新
+            currentPageId = nextPageId;
 
             if (isArticle) {
                 title.hidden = true;
@@ -1941,6 +1992,7 @@
                 window.resetEmbeddedGame();
             }
         }
+
 
         // URLを更新してページを切り替える
         function goToPage(id, scrollBottom = false) {
