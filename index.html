@@ -1205,6 +1205,7 @@
 
 
 
+
         function initializeAudioPlayers(container = document) {
 
             // 固定再生バーを作成
@@ -1236,7 +1237,7 @@
                 // ファイル名表示
                 const fileNameLabel = document.createElement("span");
                 fileNameLabel.style.fontSize = "11px";
-                fileNameLabel.style.maxWidth = "55px";
+                fileNameLabel.style.maxWidth = "75px";
                 fileNameLabel.style.minWidth = "0";
                 fileNameLabel.style.overflow = "hidden";
                 fileNameLabel.style.textOverflow = "ellipsis";
@@ -1245,7 +1246,7 @@
 
                 // 再生・一時停止ボタン
                 const playButton = document.createElement("button");
-                playButton.textContent = "⏸";
+                playButton.textContent = "▶";
                 playButton.type = "button";
                 playButton.style.cursor = "pointer";
                 playButton.style.padding = "4px";
@@ -1325,6 +1326,14 @@
 
                 // 現在の再生対象
                 let activeAudio = null;
+                let activeGroup = null;
+
+                // グループ内の音源を取得
+                function getGroupAudios(group) {
+                    return Array.from(
+                        group.querySelectorAll('audio[data-instrument-audio="true"]')
+                    );
+                }
 
                 // 時間を mm:ss 形式にする
                 function formatTime(seconds) {
@@ -1333,11 +1342,55 @@
                     const minutes = Math.floor(seconds / 60);
                     const remainingSeconds = Math.floor(seconds % 60);
 
-                    return minutes + ":" + String(remainingSeconds).padStart(2, "0");
+                    return minutes + ":" +
+                        String(remainingSeconds).padStart(2, "0");
                 }
 
                 // バーの表示内容を更新
                 function updateBar() {
+                    // 複数音源の場合
+                    if (activeGroup) {
+                        const audios = getGroupAudios(activeGroup);
+
+                        if (audios.length === 0) return;
+
+                        const masterAudio = audios[0];
+
+                        const duration = masterAudio.duration;
+                        const currentTime = masterAudio.currentTime;
+
+                        if (Number.isFinite(duration) && duration > 0) {
+                            seekBar.value = String(
+                                (currentTime / duration) * 1000
+                            );
+                        } else {
+                            seekBar.value = "0";
+                        }
+
+                        timeLabel.textContent =
+                            formatTime(currentTime) + " / " +
+                            formatTime(duration);
+
+                        playButton.textContent =
+                            masterAudio.paused ? "▶" : "⏸";
+
+                        volumeBar.value = String(masterAudio.volume);
+
+                        loopButton.style.backgroundColor =
+                            masterAudio.loop ? "#1677ff" : "white";
+
+                        loopButton.style.color =
+                            masterAudio.loop ? "white" : "black";
+
+                        loopButton.setAttribute(
+                            "aria-pressed",
+                            String(masterAudio.loop)
+                        );
+
+                        return;
+                    }
+
+                    // 通常の単一音源の場合
                     if (!activeAudio) return;
 
                     const duration = activeAudio.duration;
@@ -1352,7 +1405,8 @@
                     }
 
                     timeLabel.textContent =
-                        formatTime(currentTime) + " / " + formatTime(duration);
+                        formatTime(currentTime) + " / " +
+                        formatTime(duration);
 
                     playButton.textContent =
                         activeAudio.paused ? "▶" : "⏸";
@@ -1373,6 +1427,48 @@
 
                 // 再生・一時停止
                 playButton.addEventListener("click", () => {
+
+                    // 複数音源の場合
+                    if (activeGroup) {
+                        const audios = getGroupAudios(activeGroup);
+
+                        if (audios.length === 0) return;
+
+                        const masterAudio = audios[0];
+
+                        if (masterAudio.paused) {
+
+                            // ほかの音源を停止
+                            document.querySelectorAll("audio").forEach(audio => {
+                                if (!activeGroup.contains(audio)) {
+                                    audio.pause();
+                                    audio.currentTime = 0;
+                                }
+                            });
+
+                            // 全音源を同時に再生
+                            audios.forEach(audio => {
+                                audio.currentTime = masterAudio.currentTime;
+                                audio.volume = Number(volumeBar.value);
+                                audio.loop = masterAudio.loop;
+
+                                audio.play().catch(error => {
+                                    console.error(error);
+                                });
+                            });
+
+                        } else {
+                            // 全音源を一時停止
+                            audios.forEach(audio => {
+                                audio.pause();
+                            });
+                        }
+
+                        updateBar();
+                        return;
+                    }
+
+                    // 通常の単一音源の場合
                     if (!activeAudio) return;
 
                     if (activeAudio.paused) {
@@ -1386,15 +1482,50 @@
 
                 // 再生位置の変更
                 seekBar.addEventListener("input", () => {
+
+                    // 複数音源の場合
+                    if (activeGroup) {
+                        const audios = getGroupAudios(activeGroup);
+
+                        const masterAudio = audios[0];
+
+                        if (!masterAudio ||
+                            !Number.isFinite(masterAudio.duration)) {
+                            return;
+                        }
+
+                        const newTime =
+                            (Number(seekBar.value) / 1000) *
+                            masterAudio.duration;
+
+                        audios.forEach(audio => {
+                            audio.currentTime = newTime;
+                        });
+
+                        updateBar();
+                        return;
+                    }
+
+                    // 通常の単一音源の場合
                     if (!activeAudio) return;
                     if (!Number.isFinite(activeAudio.duration)) return;
 
                     activeAudio.currentTime =
-                        (Number(seekBar.value) / 1000) * activeAudio.duration;
+                        (Number(seekBar.value) / 1000) *
+                        activeAudio.duration;
                 });
 
                 // 音量の変更
                 volumeBar.addEventListener("input", () => {
+
+                    if (activeGroup) {
+                        getGroupAudios(activeGroup).forEach(audio => {
+                            audio.volume = Number(volumeBar.value);
+                        });
+
+                        return;
+                    }
+
                     if (!activeAudio) return;
 
                     activeAudio.volume = Number(volumeBar.value);
@@ -1402,6 +1533,21 @@
 
                 // ループの切り替え
                 loopButton.addEventListener("click", () => {
+
+                    if (activeGroup) {
+                        const audios = getGroupAudios(activeGroup);
+                        if (audios.length === 0) return;
+
+                        const newLoop = !audios[0].loop;
+
+                        audios.forEach(audio => {
+                            audio.loop = newLoop;
+                        });
+
+                        updateBar();
+                        return;
+                    }
+
                     if (!activeAudio) return;
 
                     activeAudio.loop = !activeAudio.loop;
@@ -1410,6 +1556,18 @@
 
                 // ✕ボタン：音源を停止してバーを閉じる
                 closeButton.addEventListener("click", () => {
+
+                    if (activeGroup) {
+                        getGroupAudios(activeGroup).forEach(audio => {
+                            audio.pause();
+                            audio.currentTime = 0;
+                        });
+
+                        activeGroup = null;
+                        playbackBar.style.display = "none";
+                        return;
+                    }
+
                     if (activeAudio) {
                         const audioToStop = activeAudio;
 
@@ -1426,8 +1584,10 @@
                 // 外部から参照する関数
                 playbackBar.updateBar = updateBar;
 
-                playbackBar.setActiveAudio = (audio) => {
+                // 通常の音源を再生対象にする
+                playbackBar.setActiveAudio = audio => {
                     activeAudio = audio;
+                    activeGroup = null;
 
                     const source = audio.currentSrc || audio.src;
 
@@ -1446,16 +1606,126 @@
                     updateBar();
                 };
 
+                // 複数音源を再生対象にする
+                playbackBar.setActiveGroup = group => {
+                    activeAudio = null;
+                    activeGroup = group;
+
+                    fileNameLabel.textContent =
+                        group.dataset.groupName || "複数音源";
+
+                    fileNameLabel.title = fileNameLabel.textContent;
+
+                    playbackBar.style.display = "flex";
+                    updateBar();
+                };
+
                 playbackBar.hideBar = () => {
                     activeAudio = null;
+                    activeGroup = null;
                     playbackBar.style.display = "none";
                 };
 
                 playbackBar.getActiveAudio = () => activeAudio;
+                playbackBar.getActiveGroup = () => activeGroup;
             }
 
-            // 音源を初期化
+            // 複数音源プレーヤーを初期化
+            container.querySelectorAll(".instrument-player").forEach(group => {
+
+                if (group.dataset.initialized === "true") return;
+
+                group.dataset.initialized = "true";
+
+                const audios = Array.from(
+                    group.querySelectorAll('audio[data-instrument-audio="true"]')
+                );
+
+                if (audios.length === 0) return;
+
+                // 各音源のON/OFFボタンを設定
+                audios.forEach((audio, index) => {
+
+                    audio.volume = 1;
+                    audio.loop = false;
+                    audio.muted = false;
+
+                    const toggleButton = group.querySelector(
+                        '[data-instrument-toggle="' + index + '"]'
+                    );
+
+                    if (!toggleButton) return;
+
+                    toggleButton.addEventListener("click", () => {
+
+                        audio.muted = !audio.muted;
+
+                        const isOn = !audio.muted;
+
+                        toggleButton.textContent = isOn ? "ON" : "OFF";
+
+                        toggleButton.style.backgroundColor =
+                            isOn ? "#1677ff" : "#eee";
+
+                        toggleButton.style.color =
+                            isOn ? "white" : "black";
+
+                        toggleButton.setAttribute(
+                            "aria-pressed",
+                            String(isOn)
+                        );
+                    });
+
+                    // 初期状態はON
+                    toggleButton.textContent = "ON";
+                    toggleButton.style.backgroundColor = "#1677ff";
+                    toggleButton.style.color = "white";
+                    toggleButton.setAttribute("aria-pressed", "true");
+                });
+
+                // 再生時間の同期と再生バー更新
+                const masterAudio = audios[0];
+
+                masterAudio.addEventListener("timeupdate", () => {
+
+                    if (playbackBar.getActiveGroup() !== group) return;
+
+                    // 音源間の再生位置のずれを補正
+                    audios.forEach(audio => {
+                        if (audio === masterAudio) return;
+
+                        if (Math.abs(
+                            audio.currentTime - masterAudio.currentTime
+                        ) > 0.2) {
+                            audio.currentTime = masterAudio.currentTime;
+                        }
+                    });
+
+                    playbackBar.updateBar();
+                });
+
+                masterAudio.addEventListener("durationchange", () => {
+                    if (playbackBar.getActiveGroup() === group) {
+                        playbackBar.updateBar();
+                    }
+                });
+
+                masterAudio.addEventListener("ended", () => {
+                    if (playbackBar.getActiveGroup() === group) {
+                        playbackBar.hideBar();
+                    }
+                });
+
+                // このグループを再生バーに登録
+                playbackBar.setActiveGroup(group);
+            });
+
+            // 通常の音源を初期化
             container.querySelectorAll("audio").forEach(audio => {
+
+                // 楽器別プレーヤーの音源は別処理
+                if (audio.dataset.instrumentAudio === "true") return;
+
                 if (audio.dataset.initialized === "true") return;
 
                 audio.dataset.initialized = "true";
@@ -1568,6 +1838,7 @@
 
 
 
+
         // 最初からHTMLにある音源を初期化
         initializeAudioPlayers();
 
@@ -1575,7 +1846,7 @@
 
 
 
-        // 雑記記事を表示
+
         async function showZakkiArticle(folder, filename) {
             const titleElement =
                 document.getElementById("zakki-article-title");
@@ -1633,11 +1904,14 @@
                     document.body.appendChild(persistentContainer);
                 }
 
-                // 音源の親要素ごと移動する
-                const audioWrapper =
-                    playingAudio.parentElement === bodyElement
+                // 楽器別プレーヤーの場合は、グループ全体を退避
+                const instrumentPlayer =
+                    playingAudio.closest(".instrument-player");
+
+                const audioWrapper = instrumentPlayer ||
+                    (playingAudio.parentElement === bodyElement
                         ? playingAudio
-                        : playingAudio.parentElement;
+                        : playingAudio.parentElement);
 
                 persistentContainer.appendChild(audioWrapper);
             }
@@ -1677,7 +1951,153 @@
                     .replace(/"/g, "&quot;")
                     .replace(/'/g, "&#039;");
 
-                let formattedText = escapedText.replace(
+                let formattedText = escapedText;
+
+                // 薄ら笑い楽器別プレーヤーを作成
+                if (text.includes("[[薄ら笑い楽器別]]")) {
+
+                    const listUrl =
+                        "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
+                        encodeURIComponent("雑記") + "/" +
+                        encodeURIComponent("音源") + "/" +
+                        encodeURIComponent("薄ら笑い楽器別") + "/" +
+                        "list.txt";
+
+                    let instrumentPlayerHTML = "";
+
+                    try {
+                        const listResponse = await fetch(
+                            listUrl + "?v=" + Date.now(),
+                            { cache: "no-store" }
+                        );
+
+                        if (!listResponse.ok) {
+                            throw new Error("音源一覧を取得できませんでした。");
+                        }
+
+                        const listText = await listResponse.text();
+
+                        // 一覧を読み込む
+                        const instrumentFiles = listText
+                            .replace(/^\uFEFF/, "")
+                            .split(/\r\n|\n|\r/)
+                            .map(line => line.trim())
+                            .filter(line =>
+                                line !== "" &&
+                                !line.startsWith("#") &&
+                                /\.mp3$/i.test(line)
+                            );
+
+                        // 各音源の表示を作成
+                        const instrumentRows = instrumentFiles.map(
+                            (audioFilename, index) => {
+
+                                const instrumentName =
+                                    audioFilename.replace(/\.mp3$/i, "");
+
+                                const safeName = instrumentName
+                                    .replace(/&/g, "&amp;")
+                                    .replace(/</g, "&lt;")
+                                    .replace(/>/g, "&gt;")
+                                    .replace(/"/g, "&quot;")
+                                    .replace(/'/g, "&#039;");
+
+                                const encodedFilename = audioFilename
+                                    .split("/")
+                                    .map(part => encodeURIComponent(part))
+                                    .join("/");
+
+                                const audioUrl =
+                                    "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
+                                    encodeURIComponent("雑記") + "/" +
+                                    encodeURIComponent("音源") + "/" +
+                                    encodeURIComponent("薄ら笑い楽器別") + "/" +
+                                    encodedFilename;
+
+                                return `
+                            <div style="
+                                display:flex;
+                                align-items:center;
+                                justify-content:space-between;
+                                gap:12px;
+                                padding:5px 0;
+                                border-bottom:1px solid #ddd;
+                            ">
+                                <span style="flex:1; min-width:0;">
+                                    ${safeName}
+                                </span>
+
+                                <button
+                                    type="button"
+                                    data-instrument-toggle="${index}"
+                                    style="
+                                        min-width:55px;
+                                        padding:5px 10px;
+                                        border:1px solid #ccc;
+                                        border-radius:5px;
+                                        background:#1677ff;
+                                        color:white;
+                                        cursor:pointer;
+                                    "
+                                >ON</button>
+
+                                <audio
+                                    data-instrument-audio="true"
+                                    preload="auto"
+                                    style="display:none;"
+                                >
+                                    <source
+                                        src="${audioUrl}"
+                                        type="audio/mpeg"
+                                    >
+                                </audio>
+                            </div>
+                        `;
+                            }
+                        ).join("");
+
+                        if (instrumentFiles.length === 0) {
+                            instrumentPlayerHTML =
+                                '<p>音源が登録されていません。</p>';
+                        } else {
+                            instrumentPlayerHTML = `
+                        <div
+                            class="instrument-player"
+                            data-group-name="薄ら笑い楽器別"
+                            style="
+                                max-width:600px;
+                                margin:10px 0;
+                                padding:12px;
+                                border:1px solid #ccc;
+                                border-radius:8px;
+                            "
+                        >
+                            <div style="
+                                font-weight:bold;
+                                margin-bottom:8px;
+                            ">
+                                薄ら笑い（楽器別）
+                            </div>
+
+                            ${instrumentRows}
+                        </div>
+                    `;
+                        }
+
+                    } catch (error) {
+                        console.error(error);
+
+                        instrumentPlayerHTML =
+                            '<p>薄ら笑い楽器別の音源一覧を読み込めませんでした。</p>';
+                    }
+
+                    formattedText = formattedText.replace(
+                        /\[\[薄ら笑い楽器別\]\]/g,
+                        () => instrumentPlayerHTML
+                    );
+                }
+
+                formattedText = formattedText.replace(
                     /\*\*(.+?)\*\*/g,
                     "<strong>$1</strong>"
                 );
@@ -1808,7 +2228,6 @@
                             .replace(/>/g, "&gt;");
 
                         // 改行数から空行数を計算
-                        // 改行1つは通常の行区切りなので、空行は0
                         const beforeCount =
                             (beforeNewlines.match(/\r\n|\n|\r/g) || []).length;
 
@@ -1844,6 +2263,7 @@
 
                 bodyElement.innerHTML = formattedText;
 
+                // 音源プレーヤーを初期化
                 initializeAudioPlayers(bodyElement);
 
                 // 音源の直後に動画がある場合、間の余白をなくす
@@ -1865,6 +2285,7 @@
                 console.error(error);
             }
         }
+
 
 
 
