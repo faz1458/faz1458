@@ -2224,6 +2224,8 @@
                     }
                 });
 
+
+
                 // 同期処理
                 {
                     let syncTimer = null;
@@ -2237,18 +2239,29 @@
                         audios.forEach(audio => {
 
                             if (audio === masterAudio) return;
-                            if (audio.seeking) return;
+                            if (audio.paused || audio.seeking) return;
                             if (audio.readyState < 2) return;
+                            if (audio.ended) return;
 
-                            const difference = Math.abs(
-                                masterTime - audio.currentTime
-                            );
+                            const difference = masterTime - audio.currentTime;
+                            const absoluteDifference = Math.abs(difference);
 
-                            if (difference >= 0.05) {
+                            // 大きくずれた場合だけシークで補正
+                            if (absoluteDifference >= 0.2) {
+
+                                audio.playbackRate = 1;
                                 audio.currentTime = masterTime;
-                            }
 
-                            audio.playbackRate = 1;
+                            } else if (absoluteDifference >= 0.04) {
+
+                                // 小さなずれは再生速度を調整して補正
+                                audio.playbackRate =
+                                    difference > 0 ? 1.03 : 0.97;
+
+                            } else {
+
+                                audio.playbackRate = 1;
+                            }
                         });
                     }
 
@@ -2265,7 +2278,7 @@
 
                             forceSync();
 
-                        }, 100);
+                        }, 250);
                     }
 
                     function stopSync() {
@@ -2282,6 +2295,8 @@
 
                     group._startSync = startSync;
                     group._stopSync = stopSync;
+
+                // 以下のイベントリスナーは現在のまま残す
 
                     masterAudio.addEventListener("play", () => {
 
@@ -2555,6 +2570,13 @@
 
             // 同じ記事がすでに読み込まれていれば再構築しない
             if (bodyElement.dataset.loadedArticle === articleKey) {
+
+                syncingGroups.forEach(group => {
+                    if (document.contains(group)) {
+                        group._startSync?.();
+                    }
+                });
+
                 return;
             }
 
@@ -3305,18 +3327,19 @@
                 // 読み込み済みの記事として記録
                 bodyElement.dataset.loadedArticle = articleKey;
 
+            } catch (error) {
 
-                // 記事切り替え完了後、同期処理を再開する
+                bodyElement.textContent = "記事を読み込めませんでした。";
+                console.error(error);
+
+            } finally {
+
+                // 記事切り替えの成否にかかわらず同期処理を再開
                 syncingGroups.forEach(group => {
                     if (document.contains(group)) {
                         group._startSync?.();
                     }
                 });
-
-            } catch (error) {
-
-                bodyElement.textContent = "記事を読み込めませんでした。";
-                console.error(error);
             }
         }
 
