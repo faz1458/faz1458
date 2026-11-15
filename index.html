@@ -2516,18 +2516,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
         async function showZakkiArticle(folder, filename) {
-
 
             // 記事切り替え中は、再生中グループの同期処理を一時停止する
             const syncingGroups = Array.from(
@@ -2541,26 +2530,37 @@
                 group._stopSync?.();
             });
 
-            const titleElement =
-                document.getElementById("zakki-article-title");
+            // ========== 追加: 読み込み中のネットワーク競合を防ぐため、マスター以外を一時停止 ==========
+            const temporarilyPaused = [];
 
-            const dateElement =
-                document.getElementById("zakki-article-date");
+            syncingGroups.forEach(group => {
+                const master = group.querySelector('audio[data-instrument-master="true"]');
+                if (!master) return;
 
-            const bodyElement =
-                document.getElementById("zakki-article-body");
+                const others = Array.from(
+                    group.querySelectorAll('audio[data-instrument-audio="true"]')
+                ).filter(audio => audio !== master && !audio.paused);
 
-            const categoryBackLink =
-                document.getElementById("zakki-category-back");
+                others.forEach(audio => {
+                    // もともと有効だったかどうかも記録
+                    const wasEnabled = audio.dataset.instrumentEnabled === "true";
+                    audio.pause();
+                    audio.playbackRate = 1;
+                    temporarilyPaused.push({ group, audio, wasEnabled });
+                });
+            });
+            // ========== 追加ここまで ==========
+
+            const titleElement = document.getElementById("zakki-article-title");
+            const dateElement = document.getElementById("zakki-article-date");
+            const bodyElement = document.getElementById("zakki-article-body");
+            const categoryBackLink = document.getElementById("zakki-category-back");
 
             const articleKey = folder + "/" + filename;
 
-            titleElement.textContent =
-                filename.replace(/\.txt$/i, "");
+            titleElement.textContent = filename.replace(/\.txt$/i, "");
 
-            categoryBackLink.textContent =
-                (sections[folder] || folder) + "に戻る";
-
+            categoryBackLink.textContent = (sections[folder] || folder) + "に戻る";
             categoryBackLink.href = "#" + folder;
 
             categoryBackLink.onclick = event => {
@@ -2570,23 +2570,21 @@
 
             // 同じ記事がすでに読み込まれていれば再構築しない
             if (bodyElement.dataset.loadedArticle === articleKey) {
-
+                // 一時停止していたものを再開
+                await resumeTemporarilyPaused(temporarilyPaused);
                 syncingGroups.forEach(group => {
                     if (document.contains(group)) {
                         group._startSync?.();
                     }
                 });
-
                 return;
             }
 
             // 移動前に表示していた記事のキーを取得
-            const previousArticleKey =
-                bodyElement.dataset.loadedArticle || "";
+            const previousArticleKey = bodyElement.dataset.loadedArticle || "";
 
             // 楽器別プレーヤーの状態保存領域を用意
-            let persistentContainer =
-                document.getElementById("persistent-audio-container");
+            let persistentContainer = document.getElementById("persistent-audio-container");
 
             if (!persistentContainer) {
                 persistentContainer = document.createElement("div");
@@ -2609,8 +2607,7 @@
                 persistentContainer._instrumentPlayerStates = new Map();
             }
 
-            const instrumentPlayerStates =
-                persistentContainer._instrumentPlayerStates;
+            const instrumentPlayerStates = persistentContainer._instrumentPlayerStates;
 
             // 移動前の記事にある全プレーヤーの状態を保存
             const currentGroups = Array.from(
@@ -2618,17 +2615,11 @@
             );
 
             currentGroups.forEach((group, index) => {
-
                 const audios = Array.from(
-                    group.querySelectorAll(
-                        'audio[data-instrument-audio="true"]'
-                    )
+                    group.querySelectorAll('audio[data-instrument-audio="true"]')
                 );
 
-                // まだ初期化されていないプレーヤーは保存しない
                 if (group.dataset.initialized !== "true") return;
-
-                // 移動前の記事のキーを使用する
                 if (!previousArticleKey) return;
 
                 const states = audios.map(audio =>
@@ -2636,7 +2627,6 @@
                 );
 
                 const stateKey = previousArticleKey + "::" + index;
-
                 instrumentPlayerStates.set(stateKey, states);
             });
 
@@ -2646,32 +2636,19 @@
             ).find(audio => !audio.paused);
 
             if (playingAudio) {
-
-                // 楽器別プレーヤーならグループ全体を退避
-                const instrumentPlayer =
-                    playingAudio.closest(".instrument-player");
+                const instrumentPlayer = playingAudio.closest(".instrument-player");
 
                 if (instrumentPlayer) {
-
-                    // 元の記事と記事内での位置を記録
                     const groups = Array.from(
                         bodyElement.querySelectorAll(".instrument-player")
                     );
 
-                    instrumentPlayer.dataset.persistentArticle =
-                        previousArticleKey;
+                    instrumentPlayer.dataset.persistentArticle = previousArticleKey;
+                    instrumentPlayer.dataset.persistentIndex = String(groups.indexOf(instrumentPlayer));
 
-                    instrumentPlayer.dataset.persistentIndex =
-                        String(groups.indexOf(instrumentPlayer));
-
-                    // 記事を移動する前に同期処理を停止
                     instrumentPlayer._stopSync?.();
-
                     persistentContainer.appendChild(instrumentPlayer);
-
                 } else {
-
-                    // 通常の音源は従来どおり退避
                     const audioWrapper =
                         playingAudio.parentElement === bodyElement
                             ? playingAudio
@@ -2685,7 +2662,6 @@
             bodyElement.textContent = "読み込み中...";
 
             try {
-
                 const date = await getZakkiCreatedDate(folder, filename);
                 const genre = sections[folder] || folder;
 
@@ -2731,7 +2707,6 @@
                     encodeURIComponent("楽器別曲一覧.txt");
 
                 try {
-
                     const instrumentListResponse = await fetch(
                         instrumentListUrl + "?v=" + Date.now(),
                         { cache: "no-store" }
@@ -2741,10 +2716,8 @@
                         throw new Error("楽器別曲一覧を取得できませんでした。");
                     }
 
-                    const instrumentListText =
-                        await instrumentListResponse.text();
+                    const instrumentListText = await instrumentListResponse.text();
 
-                    // 一覧からフォルダ名を取得
                     const instrumentTitles = [
                         ...new Set(
                             instrumentListText
@@ -2760,26 +2733,19 @@
 
                     let markerIndex = 0;
 
-                    // 一覧に登録されている曲を順番に確認
                     for (const title of instrumentTitles) {
-
                         const command = "[[" + title + "]]";
 
-                        // 本文に該当コマンドがなければ読み込まない
                         if (!text.includes(command)) continue;
 
-                        const marker =
-                            "@@INSTRUMENT_PLAYER_" + markerIndex + "@@";
-
+                        const marker = "@@INSTRUMENT_PLAYER_" + markerIndex + "@@";
                         markerIndex++;
 
-                        // コマンドを専用の目印に置き換える
                         formattedText = formattedText
                             .split(command)
                             .join(marker);
 
                         try {
-
                             const encodedFolder = encodeURIComponent(title);
 
                             const listUrl =
@@ -2802,7 +2768,6 @@
 
                             const listText = await listResponse.text();
 
-                            // list.txtからMP3ファイル名を取得
                             const instrumentFiles = listText
                                 .replace(/^\uFEFF/, "")
                                 .split(/\r\n|\n|\r/)
@@ -2816,12 +2781,8 @@
                             let instrumentPlayerHTML;
 
                             if (instrumentFiles.length === 0) {
-
-                                instrumentPlayerHTML =
-                                    "<p>音源が登録されていません。</p>";
-
+                                instrumentPlayerHTML = "<p>音源が登録されていません。</p>";
                             } else {
-
                                 const firstFilename = instrumentFiles[0];
 
                                 const firstEncodedFilename = firstFilename
@@ -2836,10 +2797,8 @@
                                     encodedFolder + "/" +
                                     firstEncodedFilename;
 
-                                // 楽器名とON/OFFボタン
                                 const instrumentRows = instrumentFiles.map(
                                     (audioFilename, index) => {
-
                                         const instrumentName =
                                             audioFilename.replace(/\.mp3$/i, "");
 
@@ -2862,8 +2821,6 @@
                                             encodedFolder + "/" +
                                             encodedFilename;
 
-                                        // 1曲目は上部の共通再生バーを使う
-                                        // 2曲目以降は非表示の音源として追加
                                         const hiddenAudio = index === 0
                                             ? ""
                                             : `
@@ -3006,19 +2963,13 @@
                     `;
                             }
 
-                            instrumentPlayerHTMLByMarker.set(
-                                marker,
-                                instrumentPlayerHTML
-                            );
+                            instrumentPlayerHTMLByMarker.set(marker, instrumentPlayerHTML);
 
                         } catch (error) {
-
                             console.error(error);
-
                             instrumentPlayerHTMLByMarker.set(
                                 marker,
-                                "<p>" + title +
-                                "の音源一覧を読み込めませんでした。</p>"
+                                "<p>" + title + "の音源一覧を読み込めませんでした。</p>"
                             );
                         }
                     }
@@ -3037,7 +2988,6 @@
                 formattedText = formattedText.replace(
                     /https?:\/\/[^\s<]+/g,
                     url => {
-
                         const match = url.match(
                             /^(.*?)([。、．，）)】」』]*)$/
                         );
@@ -3053,7 +3003,6 @@
                             /^https?:\/\/(?:www\.)?nicovideo\.jp\/watch\/([a-zA-Z0-9_-]+)(?:[?&].*)?$/
                         );
 
-                        // YouTube
                         if (youtubeMatch) {
                             return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
                                 '<iframe ' +
@@ -3064,7 +3013,6 @@
                                 '</iframe></div>' + punctuation;
                         }
 
-                        // ニコニコ動画
                         if (niconicoMatch) {
                             return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
                                 '<iframe ' +
@@ -3074,7 +3022,6 @@
                                 '</iframe></div>' + punctuation;
                         }
 
-                        // 通常リンク
                         return '<a href="' + linkUrl +
                             '" target="_blank" rel="noopener noreferrer">' +
                             linkUrl + '</a>' + punctuation;
@@ -3082,27 +3029,20 @@
                 );
 
                 // 雑記/音源 と ルート/music の両方に対応
-                // MP3・WAV に対応
                 formattedText = formattedText.replace(
                     /\[\[audio:([^\]]+\.(?:mp3|wav))\]\]/gi,
                     (match, filename) => {
-
                         const audioFilename = filename.trim();
-
                         const isMusic = /^music\//i.test(audioFilename);
-
                         const actualFilename = isMusic
                             ? audioFilename.replace(/^music\//i, "")
                             : audioFilename;
 
-                        const extension =
-                            actualFilename.split(".").pop().toLowerCase();
-
+                        const extension = actualFilename.split(".").pop().toLowerCase();
                         const mimeTypes = {
                             mp3: "audio/mpeg",
                             wav: "audio/wav"
                         };
-
                         const mimeType = mimeTypes[extension];
 
                         const folderPath = isMusic
@@ -3133,7 +3073,6 @@
                 formattedText = formattedText.replace(
                     /((?:\r\n|\n|\r)*)\[\[image:([^\]\r\n]+\.(?:jpg|jpeg|png|gif|webp))\]\]((?:\r\n|\n|\r)*)/gi,
                     (match, beforeNewlines, filename, afterNewlines) => {
-
                         const imageFilename = filename.trim();
 
                         const encodedFilename = imageFilename
@@ -3159,17 +3098,11 @@
                         const afterCount =
                             (afterNewlines.match(/\r\n|\n|\r/g) || []).length;
 
-                        const emptyLinesBefore =
-                            Math.max(0, beforeCount - 1);
+                        const emptyLinesBefore = Math.max(0, beforeCount - 1);
+                        const emptyLinesAfter = Math.max(0, afterCount - 1);
 
-                        const emptyLinesAfter =
-                            Math.max(0, afterCount - 1);
-
-                        const marginTop =
-                            10 + emptyLinesBefore * lineHeight;
-
-                        const marginBottom =
-                            10 + emptyLinesAfter * lineHeight;
+                        const marginTop = 10 + emptyLinesBefore * lineHeight;
+                        const marginBottom = 10 + emptyLinesAfter * lineHeight;
 
                         return '<div style="max-width:800px; width:100%; margin:' +
                             marginTop + 'px 0 ' + marginBottom +
@@ -3183,64 +3116,46 @@
                 );
 
                 // 楽器別プレーヤーを挿入
-                // マーカー直前の改行をすべて削除する
                 formattedText = formattedText.replace(
                     /(?:\r\n|\n|\r)*@@INSTRUMENT_PLAYER_\d+@@/g,
                     marker => {
-
-                        const html =
-                            instrumentPlayerHTMLByMarker.get(
-                                marker.trim()
-                            );
-
+                        const html = instrumentPlayerHTMLByMarker.get(marker.trim());
                         return html || "";
                     }
                 );
 
-                // 記事本文の通常の改行はこれまでどおり保持
                 bodyElement.style.whiteSpace = "pre-wrap";
-
                 bodyElement.innerHTML = formattedText;
 
                 // 以前退避した楽器別プレーヤーを元の記事に復元
-                const persistentContainer =
-                    document.getElementById("persistent-audio-container");
+                const persistentContainer2 = document.getElementById("persistent-audio-container");
 
-                if (persistentContainer) {
-
+                if (persistentContainer2) {
                     const newGroups = Array.from(
                         bodyElement.querySelectorAll(".instrument-player")
                     );
 
-                    // 曲ごとに保存されていたON/OFF状態を復元
-                    const instrumentPlayerStates =
-                        persistentContainer._instrumentPlayerStates;
+                    const instrumentPlayerStates2 =
+                        persistentContainer2._instrumentPlayerStates;
 
                     newGroups.forEach((group, index) => {
-
                         const stateKey = articleKey + "::" + index;
-                        const savedStates =
-                            instrumentPlayerStates.get(stateKey);
+                        const savedStates = instrumentPlayerStates2.get(stateKey);
 
                         if (!savedStates) return;
 
                         const audios = Array.from(
-                            group.querySelectorAll(
-                                'audio[data-instrument-audio="true"]'
-                            )
+                            group.querySelectorAll('audio[data-instrument-audio="true"]')
                         );
 
                         audios.forEach((audio, audioIndex) => {
-
                             if (savedStates[audioIndex] === undefined) return;
-
-                            audio.dataset.instrumentEnabled =
-                                String(savedStates[audioIndex]);
+                            audio.dataset.instrumentEnabled = String(savedStates[audioIndex]);
                         });
                     });
 
                     const savedGroups = Array.from(
-                        persistentContainer.querySelectorAll(
+                        persistentContainer2.querySelectorAll(
                             ".instrument-player[data-persistent-article]"
                         )
                     ).filter(group =>
@@ -3248,11 +3163,7 @@
                     );
 
                     savedGroups.forEach(savedGroup => {
-
-                        const index = Number(
-                            savedGroup.dataset.persistentIndex
-                        );
-
+                        const index = Number(savedGroup.dataset.persistentIndex);
                         const placeholder = newGroups[index];
 
                         if (placeholder) {
@@ -3263,10 +3174,7 @@
                         delete savedGroup.dataset.persistentIndex;
                     });
 
-                    // 固定再生バーの表示も復元
-                    const playbackBar =
-                        document.getElementById("floating-audio-player");
-
+                    const playbackBar = document.getElementById("floating-audio-player");
                     if (playbackBar?.updateBar) {
                         playbackBar.updateBar();
                     }
@@ -3277,7 +3185,6 @@
                     let node = group.previousSibling;
 
                     while (node) {
-                        // 改行や空白だけのテキストノードを削除
                         if (node.nodeType === Node.TEXT_NODE) {
                             node.textContent = node.textContent.replace(/[\s\u00a0]+$/g, "");
 
@@ -3289,7 +3196,6 @@
                             }
                         }
 
-                        // 直前の改行要素も削除
                         if (node.nodeName === "BR") {
                             const previous = node.previousSibling;
                             node.remove();
@@ -3302,9 +3208,7 @@
                 });
 
                 // 楽器別プレーヤーの余白を設定
-                // 前後の改行は上の置換処理で余白に変換済みなので削除しない
                 bodyElement.querySelectorAll(".instrument-player").forEach(group => {
-
                     group.style.setProperty("white-space", "normal", "important");
                     group.style.setProperty("padding", "0", "important");
                 });
@@ -3314,7 +3218,6 @@
 
                 // 音源の直後に動画がある場合、間の余白をなくす
                 bodyElement.querySelectorAll("audio").forEach(audio => {
-
                     const audioWrapper = audio.parentElement;
                     const nextElement = audioWrapper.nextElementSibling;
 
@@ -3327,19 +3230,50 @@
                 // 読み込み済みの記事として記録
                 bodyElement.dataset.loadedArticle = articleKey;
 
-            } catch (error) {
+                // ========== 追加: 一時停止していたセカンダリトラックを再開 ==========
+                await resumeTemporarilyPaused(temporarilyPaused);
+                // ========== 追加ここまで ==========
 
+            } catch (error) {
                 bodyElement.textContent = "記事を読み込めませんでした。";
                 console.error(error);
-
             } finally {
-
                 // 記事切り替えの成否にかかわらず同期処理を再開
                 syncingGroups.forEach(group => {
                     if (document.contains(group)) {
                         group._startSync?.();
                     }
                 });
+            }
+        }
+
+        // 一時停止したトラックを再開する共通関数
+        async function resumeTemporarilyPaused(temporarilyPaused) {
+            const bar = document.getElementById("floating-audio-player");
+
+            for (const item of temporarilyPaused) {
+                const { group, audio, wasEnabled } = item;
+
+                if (!wasEnabled) continue;
+                if (!document.contains(group)) continue;
+
+                const master = group.querySelector('audio[data-instrument-master="true"]');
+                if (!master || master.paused) continue;
+
+                try {
+                    // 可能なら既存の同期関数を使う
+                    if (bar && typeof bar.synchronizeGroup === "function") {
+                        await bar.synchronizeGroup(group, master.currentTime, true);
+                    } else {
+                        // フォールバック（synchronizeGroupが使えない場合）
+                        audio.currentTime = master.currentTime;
+                        audio.loop = master.loop;
+                        audio.playbackRate = 1;
+                        await audio.play();
+                    }
+                } catch (e) {
+                    console.error("セカンダリトラックの再開に失敗:", e);
+                }
             }
         }
 
