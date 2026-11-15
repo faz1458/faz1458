@@ -2013,7 +2013,10 @@
                         audio.preservesPitch = true;
                     }
 
-                    const initiallyEnabled = index !== 0;
+                    const initiallyEnabled =
+                        audio.dataset.instrumentEnabled !== undefined
+                            ? audio.dataset.instrumentEnabled === "true"
+                            : index !== 0;
 
                     audio.dataset.instrumentEnabled =
                         String(initiallyEnabled);
@@ -2361,19 +2364,7 @@
                         }
                     });
 
-                    // グループが記事から削除された場合
-                    const observer = new MutationObserver(() => {
 
-                        if (!document.contains(group)) {
-                            stopSync();
-                            observer.disconnect();
-                        }
-                    });
-
-                    observer.observe(document.body, {
-                        childList: true,
-                        subtree: true
-                    });
                 }
             });
 
@@ -2501,6 +2492,23 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         async function showZakkiArticle(folder, filename) {
 
             const titleElement =
@@ -2535,6 +2543,65 @@
                 return;
             }
 
+            // 移動前に表示していた記事のキーを取得
+            const previousArticleKey =
+                bodyElement.dataset.loadedArticle || "";
+
+            // 楽器別プレーヤーの状態保存領域を用意
+            let persistentContainer =
+                document.getElementById("persistent-audio-container");
+
+            if (!persistentContainer) {
+                persistentContainer = document.createElement("div");
+                persistentContainer.id = "persistent-audio-container";
+
+                Object.assign(persistentContainer.style, {
+                    position: "fixed",
+                    left: "-10000px",
+                    top: "0",
+                    width: "1px",
+                    height: "1px",
+                    overflow: "hidden"
+                });
+
+                document.body.appendChild(persistentContainer);
+            }
+
+            // 曲ごとのON/OFF状態を保存するMap
+            if (!persistentContainer._instrumentPlayerStates) {
+                persistentContainer._instrumentPlayerStates = new Map();
+            }
+
+            const instrumentPlayerStates =
+                persistentContainer._instrumentPlayerStates;
+
+            // 移動前の記事にある全プレーヤーの状態を保存
+            const currentGroups = Array.from(
+                bodyElement.querySelectorAll(".instrument-player")
+            );
+
+            currentGroups.forEach((group, index) => {
+
+                const audios = Array.from(
+                    group.querySelectorAll(
+                        'audio[data-instrument-audio="true"]'
+                    )
+                );
+
+                // まだ初期化されていないプレーヤーは保存しない
+                if (group.dataset.initialized !== "true") return;
+
+                // 移動前の記事のキーを使用する
+                if (!previousArticleKey) return;
+
+                const states = audios.map(audio =>
+                    audio.dataset.instrumentEnabled === "true"
+                );
+
+                const stateKey = previousArticleKey + "::" + index;
+
+                instrumentPlayerStates.set(stateKey, states);
+            });
 
             // 再生中の音源を記事本文の外へ退避
             const playingAudio = Array.from(
@@ -2542,25 +2609,6 @@
             ).find(audio => !audio.paused);
 
             if (playingAudio) {
-
-                let persistentContainer =
-                    document.getElementById("persistent-audio-container");
-
-                if (!persistentContainer) {
-                    persistentContainer = document.createElement("div");
-                    persistentContainer.id = "persistent-audio-container";
-
-                    Object.assign(persistentContainer.style, {
-                        position: "fixed",
-                        left: "-10000px",
-                        top: "0",
-                        width: "1px",
-                        height: "1px",
-                        overflow: "hidden"
-                    });
-
-                    document.body.appendChild(persistentContainer);
-                }
 
                 // 楽器別プレーヤーならグループ全体を退避
                 const instrumentPlayer =
@@ -2573,9 +2621,14 @@
                         bodyElement.querySelectorAll(".instrument-player")
                     );
 
-                    instrumentPlayer.dataset.persistentArticle = articleKey;
+                    instrumentPlayer.dataset.persistentArticle =
+                        previousArticleKey;
+
                     instrumentPlayer.dataset.persistentIndex =
                         String(groups.indexOf(instrumentPlayer));
+
+                    // 記事を移動する前に同期処理を停止
+                    instrumentPlayer._stopSync?.();
 
                     persistentContainer.appendChild(instrumentPlayer);
 
@@ -2629,7 +2682,6 @@
                     .replace(/'/g, "&#039;");
 
                 let formattedText = escapedText;
-
 
                 // 楽器別プレーヤーHTMLを格納する
                 const instrumentPlayerHTMLByMarker = new Map();
@@ -2781,7 +2833,7 @@
                                 <audio
                                     data-instrument-audio="true"
                                     crossorigin="anonymous"
-                                    preload="auto"
+                                    preload="none"
                                     style="display:none;"
                                 >
                                     <source
@@ -2884,7 +2936,7 @@
                                     data-instrument-master="true"
                                     crossorigin="anonymous"
                                     controls
-                                    preload="auto"
+                                    preload="none"
                                     style="
                                         display:block;
                                         width:300px;
@@ -2937,11 +2989,6 @@
                 } catch (error) {
                     console.error(error);
                 }
-
-
-
-
-
 
                 // 太字
                 formattedText = formattedText.replace(
@@ -3098,7 +3145,6 @@
                     }
                 );
 
-
                 // 楽器別プレーヤーを挿入
                 // マーカー直前の改行をすべて削除する
                 formattedText = formattedText.replace(
@@ -3114,13 +3160,10 @@
                     }
                 );
 
-
                 // 記事本文の通常の改行はこれまでどおり保持
                 bodyElement.style.whiteSpace = "pre-wrap";
 
                 bodyElement.innerHTML = formattedText;
-
-
 
                 // 以前退避した楽器別プレーヤーを元の記事に復元
                 const persistentContainer =
@@ -3131,6 +3174,33 @@
                     const newGroups = Array.from(
                         bodyElement.querySelectorAll(".instrument-player")
                     );
+
+                    // 曲ごとに保存されていたON/OFF状態を復元
+                    const instrumentPlayerStates =
+                        persistentContainer._instrumentPlayerStates;
+
+                    newGroups.forEach((group, index) => {
+
+                        const stateKey = articleKey + "::" + index;
+                        const savedStates =
+                            instrumentPlayerStates.get(stateKey);
+
+                        if (!savedStates) return;
+
+                        const audios = Array.from(
+                            group.querySelectorAll(
+                                'audio[data-instrument-audio="true"]'
+                            )
+                        );
+
+                        audios.forEach((audio, audioIndex) => {
+
+                            if (savedStates[audioIndex] === undefined) return;
+
+                            audio.dataset.instrumentEnabled =
+                                String(savedStates[audioIndex]);
+                        });
+                    });
 
                     const savedGroups = Array.from(
                         persistentContainer.querySelectorAll(
@@ -3164,7 +3234,6 @@
                         playbackBar.updateBar();
                     }
                 }
-
 
                 // 楽器別プレーヤー直前の空白を削除
                 bodyElement.querySelectorAll(".instrument-player").forEach(group => {
