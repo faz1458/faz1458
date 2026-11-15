@@ -2104,6 +2104,111 @@
                     updateMuteButtons();
                 });
 
+
+
+
+                // 全部ON・全部OFFボタン
+                const allControlWrapper = document.createElement("div");
+
+                Object.assign(allControlWrapper.style, {
+                    display: "flex",
+                    gap: "8px",
+                    marginTop: "16px",
+                    padding: "0",
+                    lineHeight: "normal"
+                });
+
+                const allOnButton = document.createElement("button");
+                allOnButton.type = "button";
+                allOnButton.textContent = "全部ON";
+
+                const allOffButton = document.createElement("button");
+                allOffButton.type = "button";
+                allOffButton.textContent = "全部OFF";
+
+                [allOnButton, allOffButton].forEach(button => {
+                    Object.assign(button.style, {
+                        cursor: "pointer",
+                        padding: "5px 12px",
+                        border: "1px solid #ccc",
+                        borderRadius: "5px",
+                        backgroundColor: "#eee",
+                        color: "black"
+                    });
+                });
+
+                // 全部ON
+                allOnButton.addEventListener("click", () => {
+
+                    audios.forEach((audio, index) => {
+
+                        audio.dataset.instrumentEnabled = "true";
+
+                        const nodes = getInstrumentAudioGraph(audio);
+
+                        nodes.gain.gain.value =
+                            audio === masterAudio
+                                ? 1
+                                : group._masterVolume;
+
+                        const onButton = group.querySelector(
+                            '[data-instrument-on="' + index + '"]'
+                        );
+
+                        const offButton = group.querySelector(
+                            '[data-instrument-off="' + index + '"]'
+                        );
+
+                        if (onButton) {
+                            onButton.style.backgroundColor = "#1677ff";
+                            onButton.style.color = "white";
+                            onButton.setAttribute("aria-pressed", "true");
+                        }
+
+                        if (offButton) {
+                            offButton.style.backgroundColor = "#eee";
+                            offButton.style.color = "black";
+                            offButton.setAttribute("aria-pressed", "false");
+                        }
+                    });
+                });
+
+                // 全部OFF
+                allOffButton.addEventListener("click", () => {
+
+                    audios.forEach((audio, index) => {
+
+                        audio.dataset.instrumentEnabled = "false";
+
+                        const nodes = getInstrumentAudioGraph(audio);
+                        nodes.gain.gain.value = 0;
+
+                        const onButton = group.querySelector(
+                            '[data-instrument-on="' + index + '"]'
+                        );
+
+                        const offButton = group.querySelector(
+                            '[data-instrument-off="' + index + '"]'
+                        );
+
+                        if (onButton) {
+                            onButton.style.backgroundColor = "#eee";
+                            onButton.style.color = "black";
+                            onButton.setAttribute("aria-pressed", "false");
+                        }
+
+                        if (offButton) {
+                            offButton.style.backgroundColor = "#1677ff";
+                            offButton.style.color = "white";
+                            offButton.setAttribute("aria-pressed", "true");
+                        }
+                    });
+                });
+
+                allControlWrapper.append(allOnButton, allOffButton);
+                group.appendChild(allControlWrapper);
+
+
                 // マスター音源の音量変更を追加音源に反映
                 masterAudio.addEventListener("volumechange", () => {
 
