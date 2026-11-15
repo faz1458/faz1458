@@ -2214,7 +2214,9 @@
                         const nodes = getInstrumentAudioGraph(audio);
 
                         nodes.gain.gain.value =
-                            isEnabled ? group._masterVolume : 0;
+                            isEnabled && !masterAudio.muted
+                                ? group._masterVolume
+                                : 0;
                     });
 
                     if (bar.getActiveGroup() === group) {
@@ -2510,6 +2512,19 @@
 
 
         async function showZakkiArticle(folder, filename) {
+
+
+            // 記事切り替え中は、再生中グループの同期処理を一時停止する
+            const syncingGroups = Array.from(
+                document.querySelectorAll(".instrument-player")
+            ).filter(group =>
+                Array.from(group.querySelectorAll("audio"))
+                    .some(audio => !audio.paused)
+            );
+
+            syncingGroups.forEach(group => {
+                group._stopSync?.();
+            });
 
             const titleElement =
                 document.getElementById("zakki-article-title");
@@ -3289,6 +3304,14 @@
 
                 // 読み込み済みの記事として記録
                 bodyElement.dataset.loadedArticle = articleKey;
+
+
+                // 記事切り替え完了後、同期処理を再開する
+                syncingGroups.forEach(group => {
+                    if (document.contains(group)) {
+                        group._startSync?.();
+                    }
+                });
 
             } catch (error) {
 
