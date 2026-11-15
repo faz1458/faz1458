@@ -1243,6 +1243,7 @@
         }
 
 
+
         function initializeAudioPlayers(container = document) {
 
             let playbackBar = document.getElementById("floating-audio-player");
@@ -1418,8 +1419,6 @@
                     if (!master) return;
 
                     group._masterVolume = volume;
-
-                    // マスターのvolumeは通常の再生バーの音量値として維持
                     master.volume = volume;
 
                     const audios = getGroupAudios(group);
@@ -1712,7 +1711,6 @@
                             audio.loop = master.loop;
                         });
 
-                        // マスターと追加音源を一度ずつ再生
                         const results = await Promise.allSettled(
                             audios.map(audio => audio.play())
                         );
@@ -1971,11 +1969,10 @@
 
                 masterAudio.dataset.instrumentMaster = "true";
                 masterAudio.controls = true;
-                masterAudio.preload = "auto";
+                masterAudio.preload = "metadata";
 
                 group._masterVolume = masterAudio.volume;
 
-                // プレーヤー周辺の余白を削除
                 group.style.setProperty("display", "flow-root", "important");
                 group.style.setProperty("width", "fit-content", "important");
                 group.style.setProperty("max-width", "100%", "important");
@@ -2009,7 +2006,7 @@
 
                     audio.loop = false;
                     audio.playbackRate = 1;
-                    audio.preload = "auto";
+                    audio.preload = "metadata";
                     audio.muted = false;
 
                     if ("preservesPitch" in audio) {
@@ -2024,10 +2021,8 @@
                     const nodes = getInstrumentAudioGraph(audio);
 
                     if (audio === masterAudio) {
-                        // マスターはON/OFFのみGainNodeで制御
                         nodes.gain.gain.value = initiallyEnabled ? 1 : 0;
                     } else {
-                        // 追加音源は共通音量とON/OFFをGainNodeで制御
                         nodes.gain.gain.value =
                             initiallyEnabled ? group._masterVolume : 0;
 
@@ -2075,7 +2070,6 @@
                         }
                     }
 
-                    // ON/OFFはGainNodeの値だけを変更
                     if (onButton) {
                         onButton.addEventListener("click", () => {
 
@@ -2094,7 +2088,6 @@
                         offButton.addEventListener("click", () => {
 
                             audio.dataset.instrumentEnabled = "false";
-
                             nodes.gain.gain.value = 0;
 
                             updateMuteButtons();
@@ -2103,9 +2096,6 @@
 
                     updateMuteButtons();
                 });
-
-
-
 
                 // 全部ON・全部OFFボタン
                 const allControlWrapper = document.createElement("div");
@@ -2137,7 +2127,6 @@
                     });
                 });
 
-                // 全部ON
                 allOnButton.addEventListener("click", () => {
 
                     audios.forEach((audio, index) => {
@@ -2173,7 +2162,6 @@
                     });
                 });
 
-                // 全部OFF
                 allOffButton.addEventListener("click", () => {
 
                     audios.forEach((audio, index) => {
@@ -2207,7 +2195,6 @@
 
                 allControlWrapper.append(allOnButton, allOffButton);
                 group.appendChild(allControlWrapper);
-
 
                 // マスター音源の音量変更を追加音源に反映
                 masterAudio.addEventListener("volumechange", () => {
@@ -2252,7 +2239,6 @@
                                 masterTime - audio.currentTime
                             );
 
-                            // 0.05秒以上ずれていたら位置を直接修正
                             if (difference >= 0.05) {
                                 audio.currentTime = masterTime;
                             }
@@ -2292,7 +2278,6 @@
                     group._startSync = startSync;
                     group._stopSync = stopSync;
 
-                    // マスター音源の再生開始
                     masterAudio.addEventListener("play", () => {
 
                         if (group._starting) return;
@@ -2300,7 +2285,6 @@
                         bar.startOthersFromMaster(group);
                     });
 
-                    // マスター音源の一時停止
                     masterAudio.addEventListener("pause", () => {
 
                         stopSync();
@@ -2317,7 +2301,6 @@
                         }
                     });
 
-                    // シーク開始
                     masterAudio.addEventListener("seeking", () => {
 
                         group._seekVersion = (group._seekVersion || 0) + 1;
@@ -2331,7 +2314,6 @@
                         });
                     });
 
-                    // シーク完了
                     masterAudio.addEventListener("seeked", async () => {
 
                         try {
@@ -2356,7 +2338,6 @@
                         bar.updateBar();
                     });
 
-                    // 再生中の表示更新
                     masterAudio.addEventListener("timeupdate", () => {
 
                         if (bar.getActiveGroup() === group) {
@@ -2364,7 +2345,6 @@
                         }
                     });
 
-                    // 再生終了
                     masterAudio.addEventListener("ended", () => {
 
                         stopSync();
@@ -2460,7 +2440,6 @@
 
                 wrapper.appendChild(loopButton);
 
-                // 通常音源の再生時は他の音源を停止
                 audio.addEventListener("play", () => {
 
                     bar.setActiveAudio(audio);
@@ -2556,6 +2535,7 @@
                 return;
             }
 
+
             // 再生中の音源を記事本文の外へ退避
             const playingAudio = Array.from(
                 bodyElement.querySelectorAll("audio")
@@ -2586,12 +2566,29 @@
                 const instrumentPlayer =
                     playingAudio.closest(".instrument-player");
 
-                const audioWrapper = instrumentPlayer ||
-                    (playingAudio.parentElement === bodyElement
-                        ? playingAudio
-                        : playingAudio.parentElement);
+                if (instrumentPlayer) {
 
-                persistentContainer.appendChild(audioWrapper);
+                    // 元の記事と記事内での位置を記録
+                    const groups = Array.from(
+                        bodyElement.querySelectorAll(".instrument-player")
+                    );
+
+                    instrumentPlayer.dataset.persistentArticle = articleKey;
+                    instrumentPlayer.dataset.persistentIndex =
+                        String(groups.indexOf(instrumentPlayer));
+
+                    persistentContainer.appendChild(instrumentPlayer);
+
+                } else {
+
+                    // 通常の音源は従来どおり退避
+                    const audioWrapper =
+                        playingAudio.parentElement === bodyElement
+                            ? playingAudio
+                            : playingAudio.parentElement;
+
+                    persistentContainer.appendChild(audioWrapper);
+                }
             }
 
             dateElement.textContent = "(日付取得中...)";
@@ -3122,6 +3119,52 @@
                 bodyElement.style.whiteSpace = "pre-wrap";
 
                 bodyElement.innerHTML = formattedText;
+
+
+
+                // 以前退避した楽器別プレーヤーを元の記事に復元
+                const persistentContainer =
+                    document.getElementById("persistent-audio-container");
+
+                if (persistentContainer) {
+
+                    const newGroups = Array.from(
+                        bodyElement.querySelectorAll(".instrument-player")
+                    );
+
+                    const savedGroups = Array.from(
+                        persistentContainer.querySelectorAll(
+                            ".instrument-player[data-persistent-article]"
+                        )
+                    ).filter(group =>
+                        group.dataset.persistentArticle === articleKey
+                    );
+
+                    savedGroups.forEach(savedGroup => {
+
+                        const index = Number(
+                            savedGroup.dataset.persistentIndex
+                        );
+
+                        const placeholder = newGroups[index];
+
+                        if (placeholder) {
+                            placeholder.replaceWith(savedGroup);
+                        }
+
+                        delete savedGroup.dataset.persistentArticle;
+                        delete savedGroup.dataset.persistentIndex;
+                    });
+
+                    // 固定再生バーの表示も復元
+                    const playbackBar =
+                        document.getElementById("floating-audio-player");
+
+                    if (playbackBar?.updateBar) {
+                        playbackBar.updateBar();
+                    }
+                }
+
 
                 // 楽器別プレーヤー直前の空白を削除
                 bodyElement.querySelectorAll(".instrument-player").forEach(group => {
