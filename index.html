@@ -2923,8 +2923,9 @@
                 );
 
                 // 楽器別プレーヤーを挿入
+                // 直前の改行だけを取り除き、見出しと再生バーを密着させる
                 formattedText = formattedText.replace(
-                    /@@INSTRUMENT_PLAYER@@/g,
+                    /(?:\r\n|\n|\r)@@INSTRUMENT_PLAYER@@/g,
                     instrumentPlayerHTML
                 );
 
