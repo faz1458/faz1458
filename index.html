@@ -2239,14 +2239,36 @@
                         audios.forEach(audio => {
 
                             if (audio === masterAudio) return;
-                            if (audio.paused || audio.seeking) return;
+                            if (audio.seeking) return;
                             if (audio.readyState < 2) return;
-                            if (audio.ended) return;
 
                             const difference = masterTime - audio.currentTime;
                             const absoluteDifference = Math.abs(difference);
 
-                            // 大きくずれた場合だけシークで補正
+                            // 停止している音源は、位置を合わせて再生を再開
+                            if (audio.paused || audio.ended) {
+
+                                if (audio._syncRestarting) return;
+
+                                audio._syncRestarting = true;
+                                audio.playbackRate = 1;
+
+                                if (absoluteDifference >= 0.015) {
+                                    audio.currentTime = masterTime;
+                                }
+
+                                audio.play().catch(error => {
+                                    if (error.name !== "AbortError") {
+                                        console.error("停止した追加音源の再開に失敗:", error);
+                                    }
+                                }).finally(() => {
+                                    audio._syncRestarting = false;
+                                });
+
+                                return;
+                            }
+
+                            // 大きくずれた場合はシークで補正
                             if (absoluteDifference >= 0.2) {
 
                                 audio.playbackRate = 1;
@@ -2296,7 +2318,7 @@
                     group._startSync = startSync;
                     group._stopSync = stopSync;
 
-                // 以下のイベントリスナーは現在のまま残す
+                    // 以下のイベントリスナーは現在のまま残す
 
                     masterAudio.addEventListener("play", () => {
 
@@ -2509,7 +2531,26 @@
 
 
 
+        async function resumeTemporarilyPaused(temporarilyPaused) {
 
+            for (const { group, audio, wasEnabled } of temporarilyPaused) {
+
+                if (!group.isConnected) continue;
+                if (!wasEnabled) continue;
+
+                const master = group.querySelector(
+                    'audio[data-instrument-master="true"]'
+                );
+
+                if (!master || master.paused) continue;
+
+                try {
+                    await audio.play();
+                } catch (error) {
+                    console.error("追加音源の再開に失敗:", error);
+                }
+            }
+        }
 
 
 
@@ -3247,35 +3288,20 @@
             }
         }
 
-        // 一時停止したトラックを再開する共通関数
-        async function resumeTemporarilyPaused(temporarilyPaused) {
-            const bar = document.getElementById("floating-audio-player");
 
-            for (const item of temporarilyPaused) {
-                const { group, audio, wasEnabled } = item;
 
-                if (!wasEnabled) continue;
-                if (!document.contains(group)) continue;
 
-                const master = group.querySelector('audio[data-instrument-master="true"]');
-                if (!master || master.paused) continue;
 
-                try {
-                    // 可能なら既存の同期関数を使う
-                    if (bar && typeof bar.synchronizeGroup === "function") {
-                        await bar.synchronizeGroup(group, master.currentTime, true);
-                    } else {
-                        // フォールバック（synchronizeGroupが使えない場合）
-                        audio.currentTime = master.currentTime;
-                        audio.loop = master.loop;
-                        audio.playbackRate = 1;
-                        await audio.play();
-                    }
-                } catch (e) {
-                    console.error("セカンダリトラックの再開に失敗:", e);
-                }
-            }
-        }
+
+
+
+
+
+
+
+
+
+
 
 
 
