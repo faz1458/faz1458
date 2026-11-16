@@ -2234,39 +2234,63 @@
 
                         if (masterAudio.paused || masterAudio.seeking) return;
 
+                        const syncVersion = group._syncVersion || 0;
                         const masterTime = masterAudio.currentTime;
 
-                        audios.forEach(audio => {
+                        audios.forEach(async audio => {
 
                             if (audio === masterAudio) return;
                             if (audio.seeking) return;
-                            if (audio.readyState < 2) return;
 
-                            const difference = masterTime - audio.currentTime;
-                            const absoluteDifference = Math.abs(difference);
-
-                            // 停止している音源は、位置を合わせて再生を再開
+                            // 停止している音源は、個別に読み込み・位置合わせ・再生する
                             if (audio.paused || audio.ended) {
 
                                 if (audio._syncRestarting) return;
 
                                 audio._syncRestarting = true;
-                                audio.playbackRate = 1;
 
-                                if (absoluteDifference >= 0.015) {
-                                    audio.currentTime = masterTime;
-                                }
+                                try {
 
-                                audio.play().catch(error => {
+                                    // メタデータの読み込みを待つ
+                                    await waitForMetadata(audio);
+
+                                    // 同期停止後に古い処理が再開しないよう確認
+                                    if (syncVersion !== (group._syncVersion || 0)) return;
+                                    if (masterAudio.paused || masterAudio.seeking) return;
+
+                                    // マスターの最新位置に合わせる
+                                    await seekAudio(audio, masterAudio.currentTime);
+
+                                    if (syncVersion !== (group._syncVersion || 0)) return;
+                                    if (masterAudio.paused || masterAudio.seeking) return;
+
+                                    // 再生
+                                    audio.playbackRate = 1;
+                                    await audio.play();
+
+                                } catch (error) {
+
                                     if (error.name !== "AbortError") {
-                                        console.error("停止した追加音源の再開に失敗:", error);
+                                        console.error(
+                                            "停止した追加音源の再開に失敗:",
+                                            audio.currentSrc,
+                                            error
+                                        );
                                     }
-                                }).finally(() => {
+
+                                } finally {
+
                                     audio._syncRestarting = false;
-                                });
+                                }
 
                                 return;
                             }
+
+                            // 読み込み途中の音源は、再生位置の補正だけ待つ
+                            if (audio.readyState < 2) return;
+
+                            const difference = masterTime - audio.currentTime;
+                            const absoluteDifference = Math.abs(difference);
 
                             // 大きくずれた場合はシークで補正
                             if (absoluteDifference >= 0.2) {
@@ -2286,7 +2310,6 @@
                             }
                         });
                     }
-
                     function startSync() {
 
                         if (syncTimer !== null) return;
@@ -2304,6 +2327,9 @@
                     }
 
                     function stopSync() {
+
+                        // 実行中の非同期同期処理を無効化
+                        group._syncVersion = (group._syncVersion || 0) + 1;
 
                         if (syncTimer !== null) {
                             clearInterval(syncTimer);
