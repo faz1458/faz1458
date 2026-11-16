@@ -1157,11 +1157,7 @@
                         sections[article.folder] || article.folder;
 
 
-                    genreLink.addEventListener("click", event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        goToPage(article.folder, true);
-                    });
+
 
 
                     genreCell.appendChild(genreLink);
@@ -3620,8 +3616,8 @@
                                 iframe.getAttribute("src") || "";
                         }
 
-                        // 動画を停止して読み込みを解除
-                        iframe.src = "about:blank";
+                        // 動画を停止して読み込みを解除（履歴を追加しない）
+                        iframe.contentWindow.location.replace("about:blank");
                     });
                 }
             }
@@ -3659,7 +3655,7 @@
             if (nextContent) {
                 nextContent.querySelectorAll("iframe").forEach(iframe => {
                     if (iframe.dataset.originalSrc) {
-                        iframe.src = iframe.dataset.originalSrc;
+                        iframe.contentWindow.location.replace(iframe.dataset.originalSrc);
                         delete iframe.dataset.originalSrc;
                     }
                 });
@@ -3714,34 +3710,80 @@
 
 
 
-        async function goToPage(id, scrollBottom = false) {
-            const pageId = String(id || "").replace(/^#/, "");
-            const currentId = location.hash.slice(1);   // ここを使う
+        let lastPushedId = location.hash.slice(1);
 
-            // すでに同じページなら何もしない（履歴を増やさない）
-            if (pageId === currentId) {
-                if (scrollBottom) scrollToBottom();
-                else scrollToTop();
+        async function goToPage(id, scrollBottom = false) {
+
+            console.log("[NAV]", "goToPage", id, "URL:", location.href, "履歴数:", history.length);      
+            const pageId = String(id || "").replace(/^#/, "");
+
+            // 同じページなら履歴を増やさない（エンコード差の影響を受けないように lastPushedId で判定）
+            if (pageId === lastPushedId) {
+                scrollToTop();
+                if (scrollBottom) {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            scrollToBottom();
+                        });
+                    });
+                }
                 return true;
             }
 
-            const newUrl = location.pathname + location.search + (pageId ? "#" + pageId : "");
+            const newUrl =
+                location.pathname +
+                location.search +
+                (pageId ? "#" + pageId : "");
+
+            console.log("[HISTORY PUSH BEFORE]", {
+                from: location.href,
+                to: newUrl,
+                pageId,
+                state: history.state,
+                length: history.length
+            });
 
             history.pushState(
-                { ...(history.state || {}), pageId },
+                {
+                    ...(history.state || {}),
+                    pageId: pageId
+                },
                 "",
                 newUrl
             );
 
+            lastPushedId = pageId;
+
+            console.log("[HISTORY PUSH AFTER]", {
+                url: location.href,
+                state: history.state,
+                length: history.length
+            });
+
+            lastPushedId = pageId;   // ← 追加
+
             const token = ++pageNavigationRequestToken;
+
             await showPage(pageId);
 
-            if (token !== pageNavigationRequestToken) return false;
+            if (token !== pageNavigationRequestToken) {
+                return false;
+            }
 
-            if (scrollBottom) scrollToBottom();
-            else scrollToTop();
+            // 上からスクロールする演出
+            scrollToTop();
+
+            if (scrollBottom) {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        scrollToBottom();
+                    });
+                });
+            }
+
             return true;
         }
+
 
 
 
@@ -3781,16 +3823,18 @@
 
 
         window.addEventListener("popstate", async () => {
-            // ブラウザが移動した先のURLを正として扱う
+
+            console.log("[POPSTATE]", location.href, history.state, history.length);
+
             const pageId = location.hash.slice(1);
+
+            lastPushedId = pageId;
 
             const token = ++pageNavigationRequestToken;
 
             await showPage(pageId);
 
-            if (token !== pageNavigationRequestToken) {
-                return;
-            }
+            if (token !== pageNavigationRequestToken) return;
 
             scrollToTop();
         });
