@@ -2562,13 +2562,24 @@
             for (const { group, audio, wasEnabled } of temporarilyPaused) {
 
                 if (!group.isConnected) continue;
-                if (!wasEnabled) continue;
 
                 const master = group.querySelector(
                     'audio[data-instrument-master="true"]'
                 );
 
                 if (!master || master.paused) continue;
+
+                // GainNodeの音量を復元
+                const nodes = getInstrumentAudioGraph(audio);
+
+                nodes.gain.gain.setValueAtTime(
+                    wasEnabled && !master.muted
+                        ? (group._masterVolume ?? master.volume)
+                        : 0,
+                    nodes.context.currentTime
+                );
+
+                if (!wasEnabled) continue;
 
                 try {
                     await audio.play();
