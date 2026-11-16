@@ -2726,12 +2726,30 @@
 
                     persistentContainer.appendChild(instrumentPlayer);
 
+
                 } else {
+                    // 楽器別音源を除いた通常音源の一覧
+                    const ordinaryAudios = Array.from(
+                        bodyElement.querySelectorAll("audio")
+                    ).filter(audio => !audio.closest(".instrument-player"));
+
+                    // 記事内で何番目の通常音源かを記録
+                    const ordinaryAudioIndex =
+                        ordinaryAudios.indexOf(playingAudio);
+
                     const audioWrapper =
                         playingAudio.parentElement === bodyElement
                             ? playingAudio
                             : playingAudio.parentElement;
 
+                    // どの記事の何番目の音源かを記録
+                    audioWrapper.dataset.persistentAudioArticle =
+                        previousArticleKey;
+
+                    audioWrapper.dataset.persistentAudioIndex =
+                        String(ordinaryAudioIndex);
+
+                    // 音源を退避
                     persistentContainer.appendChild(audioWrapper);
                 }
             }
@@ -2783,6 +2801,22 @@
                     .replace(/'/g, "&#039;");
 
                 let formattedText = escapedText;
+
+                // 別の雑記へのリンク
+                formattedText = formattedText.replace(
+                    /\[\[article:([^/\]]+)\/([^|\]]+)\|([^\]]+)\]\]/g,
+                    (match, folder, filename, linkText) => {
+
+                        return '<a href="#zakki/' +
+                            encodeURIComponent(folder) + '/' +
+                            encodeURIComponent(filename) +
+                            '" data-zakki-article="true" ' +
+                            'data-folder="' + encodeURIComponent(folder) + '" ' +
+                            'data-filename="' + encodeURIComponent(filename) + '">' +
+                            linkText +
+                            '</a>';
+                    }
+                );
 
                 // 楽器別プレーヤーHTMLを格納する
                 const instrumentPlayerHTMLByMarker = new Map();
@@ -3267,6 +3301,36 @@
                 bodyElement.style.whiteSpace = "pre-wrap";
                 bodyElement.innerHTML = formattedText;
 
+                // 雑記リンクのクリック処理
+                if (bodyElement.dataset.articleLinkHandler !== "true") {
+
+                    bodyElement.addEventListener("click", event => {
+
+                        const link = event.target.closest(
+                            'a[data-zakki-article="true"]'
+                        );
+
+                        if (!link) return;
+
+                        event.preventDefault();
+
+                        const folder = decodeURIComponent(
+                            link.dataset.folder
+                        );
+
+                        const filename = decodeURIComponent(
+                            link.dataset.filename
+                        );
+
+                        goToPage(
+                            "zakki/" + folder + "/" + filename
+                        );
+
+                    });
+
+                    bodyElement.dataset.articleLinkHandler = "true";
+                }
+
                 // 以前退避した楽器別プレーヤーを元の記事に復元
                 const persistentContainer2 =
                     document.getElementById("persistent-audio-container");
@@ -3326,6 +3390,43 @@
                         delete savedGroup.dataset.persistentArticle;
                         delete savedGroup.dataset.persistentIndex;
                     });
+
+                    // 退避していた通常音源を元の記事に復元
+                    const ordinaryAudios = Array.from(
+                        bodyElement.querySelectorAll("audio")
+                    ).filter(audio => !audio.closest(".instrument-player"));
+
+                    const savedAudioWrappers = Array.from(
+                        persistentContainer2.children
+                    ).filter(wrapper =>
+                        wrapper.dataset.persistentAudioArticle === articleKey
+                    );
+
+                    savedAudioWrappers.forEach(savedWrapper => {
+
+                        const index = Number(
+                            savedWrapper.dataset.persistentAudioIndex
+                        );
+
+                        if (!Number.isInteger(index) || index < 0) return;
+
+                        const placeholderAudio = ordinaryAudios[index];
+
+                        if (!placeholderAudio) return;
+
+                        const placeholderWrapper =
+                            placeholderAudio.parentElement === bodyElement
+                                ? placeholderAudio
+                                : placeholderAudio.parentElement;
+
+                        // 新しく生成された音源を、元の音源に置き換える
+                        placeholderWrapper.replaceWith(savedWrapper);
+
+                        // 保存情報を削除
+                        delete savedWrapper.dataset.persistentAudioArticle;
+                        delete savedWrapper.dataset.persistentAudioIndex;
+                    });
+
 
                     const playbackBar =
                         document.getElementById("floating-audio-player");
