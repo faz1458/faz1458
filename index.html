@@ -2556,8 +2556,11 @@
 
 
 
-
-        async function showZakkiArticle(folder, filename) {
+        async function showZakkiArticle(
+            folder,
+            filename,
+            navigationToken = pageNavigationToken
+        ) {
 
             // 記事切り替え中は、再生中グループの同期処理を一時停止する
             const syncingGroups = Array.from(
@@ -2571,11 +2574,14 @@
                 group._stopSync?.();
             });
 
-            // ========== 追加: 読み込み中のネットワーク競合を防ぐため、マスター以外を一時停止 ==========
+            // 読み込み中のネットワーク競合を防ぐため、マスター以外を一時停止
             const temporarilyPaused = [];
 
             syncingGroups.forEach(group => {
-                const master = group.querySelector('audio[data-instrument-master="true"]');
+                const master = group.querySelector(
+                    'audio[data-instrument-master="true"]'
+                );
+
                 if (!master) return;
 
                 const others = Array.from(
@@ -2583,25 +2589,40 @@
                 ).filter(audio => audio !== master && !audio.paused);
 
                 others.forEach(audio => {
-                    // もともと有効だったかどうかも記録
-                    const wasEnabled = audio.dataset.instrumentEnabled === "true";
+                    const wasEnabled =
+                        audio.dataset.instrumentEnabled === "true";
+
                     audio.pause();
                     audio.playbackRate = 1;
-                    temporarilyPaused.push({ group, audio, wasEnabled });
+
+                    temporarilyPaused.push({
+                        group,
+                        audio,
+                        wasEnabled
+                    });
                 });
             });
-            // ========== 追加ここまで ==========
 
-            const titleElement = document.getElementById("zakki-article-title");
-            const dateElement = document.getElementById("zakki-article-date");
-            const bodyElement = document.getElementById("zakki-article-body");
-            const categoryBackLink = document.getElementById("zakki-category-back");
+            const titleElement =
+                document.getElementById("zakki-article-title");
+
+            const dateElement =
+                document.getElementById("zakki-article-date");
+
+            const bodyElement =
+                document.getElementById("zakki-article-body");
+
+            const categoryBackLink =
+                document.getElementById("zakki-category-back");
 
             const articleKey = folder + "/" + filename;
 
-            titleElement.textContent = filename.replace(/\.txt$/i, "");
+            titleElement.textContent =
+                filename.replace(/\.txt$/i, "");
 
-            categoryBackLink.textContent = (sections[folder] || folder) + "に戻る";
+            categoryBackLink.textContent =
+                (sections[folder] || folder) + "に戻る";
+
             categoryBackLink.href = "#" + folder;
 
             categoryBackLink.onclick = event => {
@@ -2611,21 +2632,27 @@
 
             // 同じ記事がすでに読み込まれていれば再構築しない
             if (bodyElement.dataset.loadedArticle === articleKey) {
-                // 一時停止していたものを再開
+
                 await resumeTemporarilyPaused(temporarilyPaused);
+
+                if (navigationToken !== pageNavigationToken) return;
+
                 syncingGroups.forEach(group => {
                     if (document.contains(group)) {
                         group._startSync?.();
                     }
                 });
+
                 return;
             }
 
             // 移動前に表示していた記事のキーを取得
-            const previousArticleKey = bodyElement.dataset.loadedArticle || "";
+            const previousArticleKey =
+                bodyElement.dataset.loadedArticle || "";
 
             // 楽器別プレーヤーの状態保存領域を用意
-            let persistentContainer = document.getElementById("persistent-audio-container");
+            let persistentContainer =
+                document.getElementById("persistent-audio-container");
 
             if (!persistentContainer) {
                 persistentContainer = document.createElement("div");
@@ -2648,7 +2675,8 @@
                 persistentContainer._instrumentPlayerStates = new Map();
             }
 
-            const instrumentPlayerStates = persistentContainer._instrumentPlayerStates;
+            const instrumentPlayerStates =
+                persistentContainer._instrumentPlayerStates;
 
             // 移動前の記事にある全プレーヤーの状態を保存
             const currentGroups = Array.from(
@@ -2657,7 +2685,9 @@
 
             currentGroups.forEach((group, index) => {
                 const audios = Array.from(
-                    group.querySelectorAll('audio[data-instrument-audio="true"]')
+                    group.querySelectorAll(
+                        'audio[data-instrument-audio="true"]'
+                    )
                 );
 
                 if (group.dataset.initialized !== "true") return;
@@ -2668,6 +2698,7 @@
                 );
 
                 const stateKey = previousArticleKey + "::" + index;
+
                 instrumentPlayerStates.set(stateKey, states);
             });
 
@@ -2677,18 +2708,24 @@
             ).find(audio => !audio.paused);
 
             if (playingAudio) {
-                const instrumentPlayer = playingAudio.closest(".instrument-player");
+                const instrumentPlayer =
+                    playingAudio.closest(".instrument-player");
 
                 if (instrumentPlayer) {
                     const groups = Array.from(
                         bodyElement.querySelectorAll(".instrument-player")
                     );
 
-                    instrumentPlayer.dataset.persistentArticle = previousArticleKey;
-                    instrumentPlayer.dataset.persistentIndex = String(groups.indexOf(instrumentPlayer));
+                    instrumentPlayer.dataset.persistentArticle =
+                        previousArticleKey;
+
+                    instrumentPlayer.dataset.persistentIndex =
+                        String(groups.indexOf(instrumentPlayer));
 
                     instrumentPlayer._stopSync?.();
+
                     persistentContainer.appendChild(instrumentPlayer);
+
                 } else {
                     const audioWrapper =
                         playingAudio.parentElement === bodyElement
@@ -2703,7 +2740,11 @@
             bodyElement.textContent = "読み込み中...";
 
             try {
+
                 const date = await getZakkiCreatedDate(folder, filename);
+
+                if (navigationToken !== pageNavigationToken) return;
+
                 const genre = sections[folder] || folder;
 
                 dateElement.textContent =
@@ -2715,15 +2756,21 @@
                     encodeURIComponent(folder) + "/" +
                     encodeURIComponent(filename);
 
-                const response = await fetch(fileUrl + "?v=" + Date.now(), {
-                    cache: "no-store"
-                });
+                const response = await fetch(
+                    fileUrl + "?v=" + Date.now(),
+                    { cache: "no-store" }
+                );
+
+                if (navigationToken !== pageNavigationToken) return;
 
                 if (!response.ok) {
                     throw new Error("記事の読み込みに失敗しました。");
                 }
 
                 const buffer = await response.arrayBuffer();
+
+                if (navigationToken !== pageNavigationToken) return;
+
                 const decoder = new TextDecoder("utf-8");
                 const text = decoder.decode(buffer);
 
@@ -2748,16 +2795,24 @@
                     encodeURIComponent("楽器別曲一覧.txt");
 
                 try {
+
                     const instrumentListResponse = await fetch(
                         instrumentListUrl + "?v=" + Date.now(),
                         { cache: "no-store" }
                     );
 
+                    if (navigationToken !== pageNavigationToken) return;
+
                     if (!instrumentListResponse.ok) {
-                        throw new Error("楽器別曲一覧を取得できませんでした。");
+                        throw new Error(
+                            "楽器別曲一覧を取得できませんでした。"
+                        );
                     }
 
-                    const instrumentListText = await instrumentListResponse.text();
+                    const instrumentListText =
+                        await instrumentListResponse.text();
+
+                    if (navigationToken !== pageNavigationToken) return;
 
                     const instrumentTitles = [
                         ...new Set(
@@ -2775,11 +2830,14 @@
                     let markerIndex = 0;
 
                     for (const title of instrumentTitles) {
+
                         const command = "[[" + title + "]]";
 
                         if (!text.includes(command)) continue;
 
-                        const marker = "@@INSTRUMENT_PLAYER_" + markerIndex + "@@";
+                        const marker =
+                            "@@INSTRUMENT_PLAYER_" + markerIndex + "@@";
+
                         markerIndex++;
 
                         formattedText = formattedText
@@ -2787,7 +2845,9 @@
                             .join(marker);
 
                         try {
-                            const encodedFolder = encodeURIComponent(title);
+
+                            const encodedFolder =
+                                encodeURIComponent(title);
 
                             const listUrl =
                                 "https://raw.githubusercontent.com/faz1458/faz1458/HEAD/" +
@@ -2801,6 +2861,8 @@
                                 { cache: "no-store" }
                             );
 
+                            if (navigationToken !== pageNavigationToken) return;
+
                             if (!listResponse.ok) {
                                 throw new Error(
                                     title + "の音源一覧を取得できませんでした。"
@@ -2808,6 +2870,8 @@
                             }
 
                             const listText = await listResponse.text();
+
+                            if (navigationToken !== pageNavigationToken) return;
 
                             const instrumentFiles = listText
                                 .replace(/^\uFEFF/, "")
@@ -2822,8 +2886,12 @@
                             let instrumentPlayerHTML;
 
                             if (instrumentFiles.length === 0) {
-                                instrumentPlayerHTML = "<p>音源が登録されていません。</p>";
+
+                                instrumentPlayerHTML =
+                                    "<p>音源が登録されていません。</p>";
+
                             } else {
+
                                 const firstFilename = instrumentFiles[0];
 
                                 const firstEncodedFilename = firstFilename
@@ -2840,6 +2908,7 @@
 
                                 const instrumentRows = instrumentFiles.map(
                                     (audioFilename, index) => {
+
                                         const instrumentName =
                                             audioFilename.replace(/\.mp3$/i, "");
 
@@ -3004,20 +3073,29 @@
                     `;
                             }
 
-                            instrumentPlayerHTMLByMarker.set(marker, instrumentPlayerHTML);
-
-                        } catch (error) {
-                            console.error(error);
                             instrumentPlayerHTMLByMarker.set(
                                 marker,
-                                "<p>" + title + "の音源一覧を読み込めませんでした。</p>"
+                                instrumentPlayerHTML
+                            );
+
+                        } catch (error) {
+
+                            console.error(error);
+
+                            instrumentPlayerHTMLByMarker.set(
+                                marker,
+                                "<p>" + title +
+                                "の音源一覧を読み込めませんでした。</p>"
                             );
                         }
                     }
 
                 } catch (error) {
+
                     console.error(error);
                 }
+
+                if (navigationToken !== pageNavigationToken) return;
 
                 // 太字
                 formattedText = formattedText.replace(
@@ -3029,6 +3107,7 @@
                 formattedText = formattedText.replace(
                     /https?:\/\/[^\s<]+/g,
                     url => {
+
                         const match = url.match(
                             /^(.*?)([。、．，）)】」』]*)$/
                         );
@@ -3047,7 +3126,8 @@
                         if (youtubeMatch) {
                             return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
                                 '<iframe ' +
-                                'src="https://www.youtube.com/embed/' + youtubeMatch[1] + '" ' +
+                                'src="https://www.youtube.com/embed/' +
+                                youtubeMatch[1] + '" ' +
                                 'style="width:100%; aspect-ratio:16/9; border:0;" ' +
                                 'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" ' +
                                 'allowfullscreen>' +
@@ -3057,7 +3137,8 @@
                         if (niconicoMatch) {
                             return '<div style="max-width:800px; width:100%; margin:15px 0;">' +
                                 '<iframe ' +
-                                'src="https://embed.nicovideo.jp/watch/' + niconicoMatch[1] + '" ' +
+                                'src="https://embed.nicovideo.jp/watch/' +
+                                niconicoMatch[1] + '" ' +
                                 'style="width:100%; aspect-ratio:16/9; border:0;" ' +
                                 'allowfullscreen>' +
                                 '</iframe></div>' + punctuation;
@@ -3073,17 +3154,23 @@
                 formattedText = formattedText.replace(
                     /\[\[audio:([^\]]+\.(?:mp3|wav))\]\]/gi,
                     (match, filename) => {
+
                         const audioFilename = filename.trim();
+
                         const isMusic = /^music\//i.test(audioFilename);
+
                         const actualFilename = isMusic
                             ? audioFilename.replace(/^music\//i, "")
                             : audioFilename;
 
-                        const extension = actualFilename.split(".").pop().toLowerCase();
+                        const extension =
+                            actualFilename.split(".").pop().toLowerCase();
+
                         const mimeTypes = {
                             mp3: "audio/mpeg",
                             wav: "audio/wav"
                         };
+
                         const mimeType = mimeTypes[extension];
 
                         const folderPath = isMusic
@@ -3114,6 +3201,7 @@
                 formattedText = formattedText.replace(
                     /((?:\r\n|\n|\r)*)\[\[image:([^\]\r\n]+\.(?:jpg|jpeg|png|gif|webp))\]\]((?:\r\n|\n|\r)*)/gi,
                     (match, beforeNewlines, filename, afterNewlines) => {
+
                         const imageFilename = filename.trim();
 
                         const encodedFilename = imageFilename
@@ -3139,11 +3227,17 @@
                         const afterCount =
                             (afterNewlines.match(/\r\n|\n|\r/g) || []).length;
 
-                        const emptyLinesBefore = Math.max(0, beforeCount - 1);
-                        const emptyLinesAfter = Math.max(0, afterCount - 1);
+                        const emptyLinesBefore =
+                            Math.max(0, beforeCount - 1);
 
-                        const marginTop = 10 + emptyLinesBefore * lineHeight;
-                        const marginBottom = 10 + emptyLinesAfter * lineHeight;
+                        const emptyLinesAfter =
+                            Math.max(0, afterCount - 1);
+
+                        const marginTop =
+                            10 + emptyLinesBefore * lineHeight;
+
+                        const marginBottom =
+                            10 + emptyLinesAfter * lineHeight;
 
                         return '<div style="max-width:800px; width:100%; margin:' +
                             marginTop + 'px 0 ' + marginBottom +
@@ -3160,18 +3254,25 @@
                 formattedText = formattedText.replace(
                     /(?:\r\n|\n|\r)*@@INSTRUMENT_PLAYER_\d+@@/g,
                     marker => {
-                        const html = instrumentPlayerHTMLByMarker.get(marker.trim());
+
+                        const html =
+                            instrumentPlayerHTMLByMarker.get(marker.trim());
+
                         return html || "";
                     }
                 );
+
+                if (navigationToken !== pageNavigationToken) return;
 
                 bodyElement.style.whiteSpace = "pre-wrap";
                 bodyElement.innerHTML = formattedText;
 
                 // 以前退避した楽器別プレーヤーを元の記事に復元
-                const persistentContainer2 = document.getElementById("persistent-audio-container");
+                const persistentContainer2 =
+                    document.getElementById("persistent-audio-container");
 
                 if (persistentContainer2) {
+
                     const newGroups = Array.from(
                         bodyElement.querySelectorAll(".instrument-player")
                     );
@@ -3180,18 +3281,26 @@
                         persistentContainer2._instrumentPlayerStates;
 
                     newGroups.forEach((group, index) => {
+
                         const stateKey = articleKey + "::" + index;
-                        const savedStates = instrumentPlayerStates2.get(stateKey);
+
+                        const savedStates =
+                            instrumentPlayerStates2.get(stateKey);
 
                         if (!savedStates) return;
 
                         const audios = Array.from(
-                            group.querySelectorAll('audio[data-instrument-audio="true"]')
+                            group.querySelectorAll(
+                                'audio[data-instrument-audio="true"]'
+                            )
                         );
 
                         audios.forEach((audio, audioIndex) => {
+
                             if (savedStates[audioIndex] === undefined) return;
-                            audio.dataset.instrumentEnabled = String(savedStates[audioIndex]);
+
+                            audio.dataset.instrumentEnabled =
+                                String(savedStates[audioIndex]);
                         });
                     });
 
@@ -3204,7 +3313,10 @@
                     );
 
                     savedGroups.forEach(savedGroup => {
-                        const index = Number(savedGroup.dataset.persistentIndex);
+
+                        const index =
+                            Number(savedGroup.dataset.persistentIndex);
+
                         const placeholder = newGroups[index];
 
                         if (placeholder) {
@@ -3215,7 +3327,9 @@
                         delete savedGroup.dataset.persistentIndex;
                     });
 
-                    const playbackBar = document.getElementById("floating-audio-player");
+                    const playbackBar =
+                        document.getElementById("floating-audio-player");
+
                     if (playbackBar?.updateBar) {
                         playbackBar.updateBar();
                     }
@@ -3223,24 +3337,34 @@
 
                 // 楽器別プレーヤー直前の空白を削除
                 bodyElement.querySelectorAll(".instrument-player").forEach(group => {
+
                     let node = group.previousSibling;
 
                     while (node) {
+
                         if (node.nodeType === Node.TEXT_NODE) {
-                            node.textContent = node.textContent.replace(/[\s\u00a0]+$/g, "");
+
+                            node.textContent =
+                                node.textContent.replace(/[\s\u00a0]+$/g, "");
 
                             if (node.textContent.length === 0) {
+
                                 const previous = node.previousSibling;
+
                                 node.remove();
                                 node = previous;
+
                                 continue;
                             }
                         }
 
                         if (node.nodeName === "BR") {
+
                             const previous = node.previousSibling;
+
                             node.remove();
                             node = previous;
+
                             continue;
                         }
 
@@ -3250,8 +3374,17 @@
 
                 // 楽器別プレーヤーの余白を設定
                 bodyElement.querySelectorAll(".instrument-player").forEach(group => {
-                    group.style.setProperty("white-space", "normal", "important");
-                    group.style.setProperty("padding", "0", "important");
+                    group.style.setProperty(
+                        "white-space",
+                        "normal",
+                        "important"
+                    );
+
+                    group.style.setProperty(
+                        "padding",
+                        "0",
+                        "important"
+                    );
                 });
 
                 // 音源プレーヤーを初期化
@@ -3259,8 +3392,11 @@
 
                 // 音源の直後に動画がある場合、間の余白をなくす
                 bodyElement.querySelectorAll("audio").forEach(audio => {
+
                     const audioWrapper = audio.parentElement;
-                    const nextElement = audioWrapper.nextElementSibling;
+
+                    const nextElement =
+                        audioWrapper.nextElementSibling;
 
                     if (nextElement && nextElement.querySelector("iframe")) {
                         audioWrapper.style.marginBottom = "0";
@@ -3271,14 +3407,22 @@
                 // 読み込み済みの記事として記録
                 bodyElement.dataset.loadedArticle = articleKey;
 
-                // ========== 追加: 一時停止していたセカンダリトラックを再開 ==========
+                // 一時停止していたセカンダリトラックを再開
                 await resumeTemporarilyPaused(temporarilyPaused);
-                // ========== 追加ここまで ==========
+
+                if (navigationToken !== pageNavigationToken) return;
 
             } catch (error) {
+
+                // 古いページのエラーで現在の画面を上書きしない
+                if (navigationToken !== pageNavigationToken) return;
+
                 bodyElement.textContent = "記事を読み込めませんでした。";
+
                 console.error(error);
+
             } finally {
+
                 // 記事切り替えの成否にかかわらず同期処理を再開
                 syncingGroups.forEach(group => {
                     if (document.contains(group)) {
@@ -3287,7 +3431,6 @@
                 });
             }
         }
-
 
 
 
@@ -3325,9 +3468,14 @@
         let currentPageId = null;
 
 
+        let pageNavigationToken = 0;
+
+
 
         // ページ表示
         async function showPage(id = location.hash.slice(1)) {
+            const navigationToken = ++pageNavigationToken;
+
             const home = document.getElementById("home");
             const section = document.getElementById("section");
             const title = document.getElementById("section-title");
@@ -3431,7 +3579,7 @@
                     filename.replace(/\.txt$/i, "") +
                     " - ホームページ";
 
-                await showZakkiArticle(folder, filename);
+                await showZakkiArticle(folder, filename, navigationToken);
 
             } else if (isNormalPage) {
                 title.hidden = false;
@@ -3448,6 +3596,9 @@
 
                 await loadZakkiAllList();
             }
+
+            // 古いページ読み込みなら、以降の処理を中止
+            if (navigationToken !== pageNavigationToken) return;
 
             // ゲームページへの移動・離脱
             if (id === "game") {
