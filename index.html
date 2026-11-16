@@ -1156,10 +1156,13 @@
                     genreLink.textContent =
                         sections[article.folder] || article.folder;
 
+
                     genreLink.addEventListener("click", event => {
                         event.preventDefault();
+                        event.stopPropagation();
                         goToPage(article.folder, true);
                     });
+
 
                     genreCell.appendChild(genreLink);
 
@@ -1247,6 +1250,79 @@
         function initializeAudioPlayers(container = document) {
 
             let playbackBar = document.getElementById("floating-audio-player");
+
+
+            // メタデータの読み込みを待つ
+            function waitForMetadata(audio) {
+                if (audio.error) {
+                    return Promise.reject(
+                        new Error("音源の読み込みに失敗しました")
+                    );
+                }
+
+                if (audio.readyState >= 1) {
+                    return Promise.resolve();
+                }
+
+                return new Promise((resolve, reject) => {
+                    const onLoaded = () => {
+                        cleanup();
+                        resolve();
+                    };
+
+                    const onError = () => {
+                        cleanup();
+                        reject(new Error("音源の読み込みに失敗しました"));
+                    };
+
+                    const cleanup = () => {
+                        audio.removeEventListener("loadedmetadata", onLoaded);
+                        audio.removeEventListener("error", onError);
+                    };
+
+                    audio.addEventListener("loadedmetadata", onLoaded, { once: true });
+                    audio.addEventListener("error", onError, { once: true });
+
+                    if (audio.networkState === HTMLMediaElement.NETWORK_EMPTY) {
+                        audio.load();
+                    }
+                });
+            }
+
+            // 既存のシーク完了を待つ
+            function waitForSeek(audio) {
+                if (!audio.seeking) {
+                    return Promise.resolve();
+                }
+
+                return new Promise(resolve => {
+                    audio.addEventListener("seeked", resolve, { once: true });
+                });
+            }
+
+            // 音源を指定位置へ移動
+            async function seekAudio(audio, targetTime) {
+                await waitForSeek(audio);
+
+                if (Math.abs(audio.currentTime - targetTime) < 0.015) {
+                    return;
+                }
+
+                await new Promise(resolve => {
+                    const onSeeked = () => {
+                        audio.removeEventListener("seeked", onSeeked);
+                        resolve();
+                    };
+
+                    audio.addEventListener("seeked", onSeeked);
+                    audio.currentTime = targetTime;
+
+                    if (!audio.seeking) {
+                        audio.removeEventListener("seeked", onSeeked);
+                        resolve();
+                    }
+                });
+            }
 
             // 固定再生バーを作成
             if (!playbackBar) {
@@ -1513,87 +1589,7 @@
                     playbackBar.style.display = "none";
                 }
 
-                // メタデータの読み込みを待つ
-                function waitForMetadata(audio) {
-                    if (audio.error) {
-                        return Promise.reject(
-                            new Error("音源の読み込みに失敗しました")
-                        );
-                    }
 
-                    if (audio.readyState >= 1) {
-                        return Promise.resolve();
-                    }
-
-                    return new Promise((resolve, reject) => {
-
-                        const onLoaded = () => {
-                            cleanup();
-                            resolve();
-                        };
-
-                        const onError = () => {
-                            cleanup();
-                            reject(new Error("音源の読み込みに失敗しました"));
-                        };
-
-                        const cleanup = () => {
-                            audio.removeEventListener("loadedmetadata", onLoaded);
-                            audio.removeEventListener("error", onError);
-                        };
-
-                        audio.addEventListener("loadedmetadata", onLoaded, {
-                            once: true
-                        });
-
-                        audio.addEventListener("error", onError, {
-                            once: true
-                        });
-
-                        if (audio.networkState === HTMLMediaElement.NETWORK_EMPTY) {
-                            audio.load();
-                        }
-                    });
-                }
-
-                // 既存のシーク完了を待つ
-                function waitForSeek(audio) {
-                    if (!audio.seeking) {
-                        return Promise.resolve();
-                    }
-
-                    return new Promise(resolve => {
-                        audio.addEventListener("seeked", resolve, {
-                            once: true
-                        });
-                    });
-                }
-
-                // 音源を指定位置へ移動
-                async function seekAudio(audio, targetTime) {
-                    await waitForSeek(audio);
-
-                    if (Math.abs(audio.currentTime - targetTime) < 0.015) {
-                        return;
-                    }
-
-                    await new Promise(resolve => {
-
-                        const onSeeked = () => {
-                            audio.removeEventListener("seeked", onSeeked);
-                            resolve();
-                        };
-
-                        audio.addEventListener("seeked", onSeeked);
-
-                        audio.currentTime = targetTime;
-
-                        if (!audio.seeking) {
-                            audio.removeEventListener("seeked", onSeeked);
-                            resolve();
-                        }
-                    });
-                }
 
                 // マスター音源に追加音源を同期
                 async function synchronizeGroup(group, targetTime, resume = true) {
@@ -2230,6 +2226,7 @@
                 {
                     let syncTimer = null;
 
+
                     function forceSync() {
 
                         if (masterAudio.paused || masterAudio.seeking) return;
@@ -2242,7 +2239,7 @@
                             if (audio === masterAudio) return;
                             if (audio.seeking) return;
 
-                            // 停止している音源は、個別に読み込み・位置合わせ・再生する
+                            // 停止している音源は、位置合わせして再開
                             if (audio.paused || audio.ended) {
 
                                 if (audio._syncRestarting) return;
@@ -2251,20 +2248,16 @@
 
                                 try {
 
-                                    // メタデータの読み込みを待つ
                                     await waitForMetadata(audio);
 
-                                    // 同期停止後に古い処理が再開しないよう確認
                                     if (syncVersion !== (group._syncVersion || 0)) return;
                                     if (masterAudio.paused || masterAudio.seeking) return;
 
-                                    // マスターの最新位置に合わせる
                                     await seekAudio(audio, masterAudio.currentTime);
 
                                     if (syncVersion !== (group._syncVersion || 0)) return;
                                     if (masterAudio.paused || masterAudio.seeking) return;
 
-                                    // 再生
                                     audio.playbackRate = 1;
                                     await audio.play();
 
@@ -2286,30 +2279,22 @@
                                 return;
                             }
 
-                            // 読み込み途中の音源は、再生位置の補正だけ待つ
+                            // 読み込み途中なら次回の確認を待つ
                             if (audio.readyState < 2) return;
 
+                            // ずれを検出したら即座に位置を修正
                             const difference = masterTime - audio.currentTime;
-                            const absoluteDifference = Math.abs(difference);
 
-                            // 大きくずれた場合はシークで補正
-                            if (absoluteDifference >= 0.2) {
-
+                            if (Math.abs(difference) >= 0.01) {
                                 audio.playbackRate = 1;
                                 audio.currentTime = masterTime;
-
-                            } else if (absoluteDifference >= 0.04) {
-
-                                // 小さなずれは再生速度を調整して補正
-                                audio.playbackRate =
-                                    difference > 0 ? 1.03 : 0.97;
-
                             } else {
-
                                 audio.playbackRate = 1;
                             }
                         });
                     }
+
+
                     function startSync() {
 
                         if (syncTimer !== null) return;
@@ -2323,7 +2308,7 @@
 
                             forceSync();
 
-                        }, 250);
+                        }, 100);
                     }
 
                     function stopSync() {
@@ -2664,6 +2649,7 @@
 
             categoryBackLink.onclick = event => {
                 event.preventDefault();
+                event.stopPropagation();
                 goToPage(folder, true);
             };
 
@@ -3338,35 +3324,7 @@
                 bodyElement.style.whiteSpace = "pre-wrap";
                 bodyElement.innerHTML = formattedText;
 
-                // 雑記リンクのクリック処理
-                if (bodyElement.dataset.articleLinkHandler !== "true") {
 
-                    bodyElement.addEventListener("click", event => {
-
-                        const link = event.target.closest(
-                            'a[data-zakki-article="true"]'
-                        );
-
-                        if (!link) return;
-
-                        event.preventDefault();
-
-                        const folder = decodeURIComponent(
-                            link.dataset.folder
-                        );
-
-                        const filename = decodeURIComponent(
-                            link.dataset.filename
-                        );
-
-                        goToPage(
-                            "zakki/" + folder + "/" + filename
-                        );
-
-                    });
-
-                    bodyElement.dataset.articleLinkHandler = "true";
-                }
 
                 // 以前退避した楽器別プレーヤーを元の記事に復元
                 const persistentContainer2 =
@@ -3747,40 +3705,50 @@
         }
 
 
-        // URLを更新してページを切り替える
+
+        // ページ遷移の競合を防ぐ番号
+        let pageNavigationRequestToken = 0;
+
+        // ブラウザ側の自動スクロール復元を無効化
+        history.scrollRestoration = "manual";
+
+
+
         async function goToPage(id, scrollBottom = false) {
+            const pageId = String(id || "").replace(/^#/, "");
+            const currentId = location.hash.slice(1);   // ここを使う
 
-            const newUrl = id
-                ? location.pathname + location.search + "#" + id
-                : location.pathname + location.search;
-
-            history.pushState(null, "", newUrl);
-
-            // 雑記から別の雑記へ直接移動する場合、
-            // いったん雑記ページを離れてから移動する
-            if (
-                id.startsWith("zakki/") &&
-                currentPageId === "zakki"
-            ) {
-                await showPage("");
+            // すでに同じページなら何もしない（履歴を増やさない）
+            if (pageId === currentId) {
+                if (scrollBottom) scrollToBottom();
+                else scrollToTop();
+                return true;
             }
 
-            await showPage(id);
+            const newUrl = location.pathname + location.search + (pageId ? "#" + pageId : "");
 
-            scrollToTop();
+            history.pushState(
+                { ...(history.state || {}), pageId },
+                "",
+                newUrl
+            );
 
-            if (scrollBottom) {
-                requestAnimationFrame(() => {
-                    scrollToBottom();
-                });
-            }
+            const token = ++pageNavigationRequestToken;
+            await showPage(pageId);
 
-            return false;
+            if (token !== pageNavigationRequestToken) return false;
+
+            if (scrollBottom) scrollToBottom();
+            else scrollToTop();
+            return true;
         }
+
+
 
         // トップページ内のリンク
         // 動的に生成された雑記記事リンクにも対応
         document.getElementById("home").addEventListener("click", event => {
+
             const link = event.target.closest("a[href^='#']");
 
             if (!link) return;
@@ -3792,6 +3760,7 @@
 
         // ページ内リンクと戻るリンク
         document.getElementById("section").addEventListener("click", event => {
+
             const link = event.target.closest("a");
 
             if (!link) return;
@@ -3810,18 +3779,46 @@
             }
         });
 
-        // ブラウザの戻る・進む操作
-        window.addEventListener("popstate", () => {
-            showPage().then(() => {
-                requestAnimationFrame(scrollToTop);
-            });
+
+        window.addEventListener("popstate", async () => {
+            // ブラウザが移動した先のURLを正として扱う
+            const pageId = location.hash.slice(1);
+
+            const token = ++pageNavigationRequestToken;
+
+            await showPage(pageId);
+
+            if (token !== pageNavigationRequestToken) {
+                return;
+            }
+
+            scrollToTop();
         });
 
-        // 初期表示
-        showPage();
-        scrollToTop();
-    </script>
+        // 初期表示時のページIDを現在の履歴に保存
+        const initialPageId = location.hash.slice(1);
 
+        history.replaceState(
+            {
+                ...(history.state || {}),
+                pageId: initialPageId
+            },
+            "",
+            location.pathname + location.search + location.hash
+        );
+
+        // 初期表示
+        const initialNavigationToken = ++pageNavigationRequestToken;
+
+        showPage(initialPageId).then(() => {
+            if (initialNavigationToken === pageNavigationRequestToken) {
+                scrollToTop();
+            }
+        });
+
+
+
+    </script>
 
 
 
