@@ -3737,22 +3737,32 @@
 
 
         // URLを更新してページを切り替える
-        function goToPage(id, scrollBottom = false) {
+        async function goToPage(id, scrollBottom = false) {
+
             const newUrl = id
                 ? location.pathname + location.search + "#" + id
                 : location.pathname + location.search;
 
             history.pushState(null, "", newUrl);
 
-            showPage(id).then(() => {
-                scrollToTop();
+            // 雑記から別の雑記へ直接移動する場合、
+            // いったん雑記ページを離れてから移動する
+            if (
+                id.startsWith("zakki/") &&
+                currentPageId === "zakki"
+            ) {
+                await showPage("");
+            }
 
-                if (scrollBottom) {
-                    requestAnimationFrame(() => {
-                        scrollToBottom();
-                    });
-                }
-            });
+            await showPage(id);
+
+            scrollToTop();
+
+            if (scrollBottom) {
+                requestAnimationFrame(() => {
+                    scrollToBottom();
+                });
+            }
 
             return false;
         }
