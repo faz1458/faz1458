@@ -1,4 +1,10 @@
 {
+  "typing": [
+    {
+      "file": "運指表.txt",
+      "date": "2026/11/17"
+    }
+  ],
   "music": [
     {
       "file": "最初期の曲の話.txt",
@@ -25,12 +31,7 @@
 
   ],
   "3dcg": [],
-  "typing": [
-    {
-      "file": "運指表.txt",
-      "date": "2026/11/17"
-    }
-  ],
+
   "bunsyou": [],
   "mariokart": [],
   "mahjong": [],
