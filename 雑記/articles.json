@@ -25,7 +25,12 @@
 
   ],
   "3dcg": [],
-  "typing": [],
+  "typing": [
+    {
+      "file": "運指表.txt",
+      "date": "2026/11/17"
+    }
+  ],
   "bunsyou": [],
   "mariokart": [],
   "mahjong": [],
