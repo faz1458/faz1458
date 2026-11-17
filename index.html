@@ -177,11 +177,6 @@
 
 
 
-
-
-
-
-
     <div id="section" hidden>
         <h1 id="section-title"></h1>
 
@@ -232,6 +227,50 @@
             </ul>
 
         </div>
+
+
+        <div id="typing-content" hidden>
+
+
+            <p>Zタイパーになりたい。</p>
+            <h2>e-typing</h2>
+            <p>腕試しR657(2025/09/09)</p>
+            <blockquote class="twitter-tweet">
+                <a href="https://twitter.com/faz1458/status/1965343831584637239"></a>
+            </blockquote>
+            <script async src="https://platform.twitter.com/widgets.js"
+                    charset="utf-8"></script>
+
+            <p></p>
+
+            <h2>TW</h2>
+            <p>R常用ZJ(2026/06/04)、総合XX</p>
+            <blockquote class="twitter-tweet">
+                <a href="https://twitter.com/faz1458/status/2062444388593414553"></a>
+            </blockquote>
+            <script async src="https://platform.twitter.com/widgets.js"
+                    charset="utf-8"></script>
+
+            <p></p>
+
+            <h2>美佳タイプ</h2>
+            <p>ローマ字単語練習入力速度474.5文字/分(2024/05/21)</p>
+            <blockquote class="twitter-tweet">
+                <a href="https://twitter.com/faz1458/status/1792911631153807592"></a>
+            </blockquote>
+            <script async src="https://platform.twitter.com/widgets.js"
+                    charset="utf-8"></script>
+
+
+            <h2 style="margin-top: 50px;">雑記</h2>
+            <ul class="zakki-list"
+                data-zakki-folder="typing"
+                style="list-style: none; padding-left: 0; margin-left: 0;">
+            </ul>
+        </div>
+
+
+
 
         <div id="3dcg-content" hidden>
             <div style="display: flex; align-items: baseline; gap: 10px;">
@@ -2987,75 +3026,75 @@
                                         const hiddenAudio = index === 0
                                             ? ""
                                             : `
-                                <audio
-                                    data-instrument-audio="true"
-                                    crossorigin="anonymous"
-                                    preload="none"
-                                    style="display:none;"
-                                >
-                                    <source
-                                        src="${audioUrl}"
-                                        type="audio/mpeg"
+                                    <audio
+                                        data-instrument-audio="true"
+                                        crossorigin="anonymous"
+                                        preload="none"
+                                        style="display:none;"
                                     >
-                                </audio>
-                            `;
+                                        <source
+                                            src="${audioUrl}"
+                                            type="audio/mpeg"
+                                        >
+                                    </audio>
+                                `;
 
                                         return `
-                            <div style="
-                                display:flex;
-                                align-items:center;
-                                width:fit-content;
-                                max-width:100%;
-                                margin:0;
-                                padding:0;
-                                line-height:normal;
-                                white-space:normal;
-                            ">
-                                <span style="
-                                    display:inline-block;
-                                    width:10em;
-                                    flex-shrink:0;
-                                    white-space:nowrap;
-                                ">${safeName}</span>
-
-                                <span style="
+                                <div style="
                                     display:flex;
-                                    gap:0;
+                                    align-items:center;
+                                    width:fit-content;
+                                    max-width:100%;
                                     margin:0;
                                     padding:0;
+                                    line-height:normal;
+                                    white-space:normal;
                                 ">
-                                    <button
-                                        type="button"
-                                        data-instrument-on="${index}"
-                                        style="
-                                            margin:0;
-                                            padding:2px 7px;
-                                            border:1px solid #ccc;
-                                            border-radius:3px;
-                                            background:#1677ff;
-                                            color:white;
-                                            cursor:pointer;
-                                        "
-                                    >ON</button>
+                                    <span style="
+                                        display:inline-block;
+                                        width:10em;
+                                        flex-shrink:0;
+                                        white-space:nowrap;
+                                    ">${safeName}</span>
 
-                                    <button
-                                        type="button"
-                                        data-instrument-off="${index}"
-                                        style="
-                                            margin:0;
-                                            padding:2px 7px;
-                                            border:1px solid #ccc;
-                                            border-radius:3px;
-                                            background:#eee;
-                                            color:black;
-                                            cursor:pointer;
-                                        "
-                                    >OFF</button>
-                                </span>
+                                    <span style="
+                                        display:flex;
+                                        gap:0;
+                                        margin:0;
+                                        padding:0;
+                                    ">
+                                        <button
+                                            type="button"
+                                            data-instrument-on="${index}"
+                                            style="
+                                                margin:0;
+                                                padding:2px 7px;
+                                                border:1px solid #ccc;
+                                                border-radius:3px;
+                                                background:#1677ff;
+                                                color:white;
+                                                cursor:pointer;
+                                            "
+                                        >ON</button>
 
-                                ${hiddenAudio}
-                            </div>
-                        `;
+                                        <button
+                                            type="button"
+                                            data-instrument-off="${index}"
+                                            style="
+                                                margin:0;
+                                                padding:2px 7px;
+                                                border:1px solid #ccc;
+                                                border-radius:3px;
+                                                background:#eee;
+                                                color:black;
+                                                cursor:pointer;
+                                            "
+                                        >OFF</button>
+                                    </span>
+
+                                    ${hiddenAudio}
+                                </div>
+                            `;
                                     }
                                 ).join("");
 
@@ -3067,63 +3106,63 @@
                                     .replace(/'/g, "&#039;");
 
                                 instrumentPlayerHTML = `
-                        <div
-                            class="instrument-player"
-                            data-group-name="${safeTitle}"
-                            style="
-                                display:flow-root;
-                                width:fit-content;
-                                max-width:100%;
-                                margin:0;
-                                padding:0;
-                                line-height:normal;
-                                white-space:normal;
-                            "
-                        >
-                            <div style="
-                                display:block;
-                                margin:0;
-                                padding:10px 0;
-                                line-height:0;
-                                font-size:0;
-                                white-space:normal;
-                            ">
-                                <audio
-                                    data-instrument-audio="true"
-                                    data-instrument-master="true"
-                                    crossorigin="anonymous"
-                                    controls
-                                    preload="none"
-                                    style="
-                                        display:block;
-                                        width:300px;
-                                        max-width:100%;
-                                        margin:0;
-                                        padding:0;
-                                        vertical-align:top;
-                                    "
-                                >
-                                    <source
-                                        src="${firstAudioUrl}"
-                                        type="audio/mpeg"
+                            <div
+                                class="instrument-player"
+                                data-group-name="${safeTitle}"
+                                style="
+                                    display:flow-root;
+                                    width:fit-content;
+                                    max-width:100%;
+                                    margin:0;
+                                    padding:0;
+                                    line-height:normal;
+                                    white-space:normal;
+                                "
+                            >
+                                <div style="
+                                    display:block;
+                                    margin:0;
+                                    padding:10px 0;
+                                    line-height:0;
+                                    font-size:0;
+                                    white-space:normal;
+                                ">
+                                    <audio
+                                        data-instrument-audio="true"
+                                        data-instrument-master="true"
+                                        crossorigin="anonymous"
+                                        controls
+                                        preload="none"
+                                        style="
+                                            display:block;
+                                            width:300px;
+                                            max-width:100%;
+                                            margin:0;
+                                            padding:0;
+                                            vertical-align:top;
+                                        "
                                     >
-                                </audio>
-                            </div>
+                                        <source
+                                            src="${firstAudioUrl}"
+                                            type="audio/mpeg"
+                                        >
+                                    </audio>
+                                </div>
 
-                            <div style="
-                                display:flex;
-                                flex-direction:column;
-                                align-items:flex-start;
-                                gap:0;
-                                margin:0;
-                                padding:0;
-                                line-height:normal;
-                                white-space:normal;
-                            ">
-                                ${instrumentRows}
+                                <div style="
+                                    display:flex;
+                                    flex-direction:column;
+                                    align-items:flex-start;
+                                    gap:0;
+                                    margin:0;
+                                    padding:0;
+                                    line-height:normal;
+                                    white-space:normal;
+                                ">
+                                    ${instrumentRows}
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
                             }
 
                             instrumentPlayerHTMLByMarker.set(
@@ -3714,7 +3753,7 @@
 
         async function goToPage(id, scrollBottom = false) {
 
-            console.log("[NAV]", "goToPage", id, "URL:", location.href, "履歴数:", history.length);      
+            console.log("[NAV]", "goToPage", id, "URL:", location.href, "履歴数:", history.length);
             const pageId = String(id || "").replace(/^#/, "");
 
             // 同じページなら履歴を増やさない（エンコード差の影響を受けないように lastPushedId で判定）
