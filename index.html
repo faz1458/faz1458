@@ -2081,6 +2081,8 @@
             // 楽器別プレーヤーを初期化
             container.querySelectorAll(".instrument-player").forEach(group => {
 
+
+
                 if (group.dataset.initialized === "true") return;
 
                 const audios = Array.from(
@@ -2090,6 +2092,37 @@
                 );
 
                 if (audios.length === 0) return;
+
+                audios.forEach(audio => {
+
+                    const log = event => {
+                        console.log(
+                            `[音源イベント: ${event.type}]`,
+                            audio.currentSrc,
+                            {
+                                paused: audio.paused,
+                                ended: audio.ended,
+                                currentTime: audio.currentTime,
+                                duration: audio.duration,
+                                readyState: audio.readyState,
+                                networkState: audio.networkState,
+                                error: audio.error
+                            }
+                        );
+                    };
+
+                    [
+                        "pause",
+                        "ended",
+                        "waiting",
+                        "stalled",
+                        "error",
+                        "playing"
+                    ].forEach(eventName => {
+                        audio.addEventListener(eventName, log);
+                    });
+
+                });
 
                 const masterAudio = audios[0];
 
