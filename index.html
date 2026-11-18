@@ -2358,7 +2358,6 @@
                 {
                     let syncTimer = null;
 
-
                     function forceSync() {
 
                         if (masterAudio.paused || masterAudio.seeking) return;
@@ -2426,10 +2425,20 @@
                         });
                     }
 
-
                     function startSync() {
 
                         if (syncTimer !== null) return;
+
+                        // 監視開始時点の再生位置を記録
+                        const now = performance.now();
+
+                        audios.forEach(audio => {
+                            if (audio === masterAudio) return;
+
+                            audio._syncLastObservedTime = audio.currentTime;
+                            audio._syncLastProgressAt = now;
+                            audio._syncRetryAfter = 0;
+                        });
 
                         syncTimer = setInterval(() => {
 
